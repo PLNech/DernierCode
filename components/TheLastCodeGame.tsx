@@ -1,6 +1,7 @@
+// components/TheLastCodeGame.tsx
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
-import { Terminal, Code, Users, PieChart, Zap, Cpu, Briefcase, CheckCircle } from 'lucide-react';
+import { Terminal, Code, Users, PieChart, Zap, Cpu, Briefcase } from 'lucide-react';
 
 // Code samples with language-specific syntax highlighting classes
 const CODE_SAMPLES = [
@@ -599,7 +600,7 @@ const QUALITY_COLORS = {
 };
 
 // Syntax highlighting function - simplistic version
-const syntaxHighlight = (code, language) => {
+const syntaxHighlight = (code) => {
   if (!code) return '';
 
   // Make a copy of the code to avoid modifying the original
@@ -674,8 +675,8 @@ const TheLastCodeGame = () => {
   const [incomingTasks, setIncomingTasks] = useState([]);
   const [completedTasks, setCompletedTasks] = useState(0);
 
-  // New state for verification mode
-  const [agentsInVerificationMode, setAgentsInVerificationMode] = useState([]);
+  // New state for verification mode, not using set yet
+  const [agentsInVerificationMode,] = useState([]);
 
   // Code display state
   const [visibleCodeSample, setVisibleCodeSample] = useState(0);
@@ -693,7 +694,7 @@ const TheLastCodeGame = () => {
     setCurrentCodeText('');
     setTypingPosition(0);
     updateHighlightedText('');
-  }, [visibleCodeSample]);
+  }, [visibleCodeSample, updateHighlightedText]);
 
   // Auto-scrolling for code view
   useEffect(() => {
@@ -804,7 +805,7 @@ const TheLastCodeGame = () => {
     if (hasSuperAgent && !level3Unlocked) {
       setLevel3Unlocked(true);
     }
-  }, [ownedAgents]);
+  }, [ownedAgents, isFullyAutomated, level3Unlocked]);
 
   // Auto-run tasks when in fully automated mode
   useEffect(() => {
@@ -857,7 +858,7 @@ const TheLastCodeGame = () => {
     }, 2000); // Run automation every 2 seconds
 
     return () => clearInterval(automationInterval);
-  }, [isFullyAutomated, incomingTasks, ownedAgents, money, unlockedTasks]);
+  }, [isFullyAutomated, incomingTasks, ownedAgents, money, unlockedTasks, assignTask, getAvailableAgents, purchaseAgent, unlockTaskType]);
 
   // Handle auto-verification from high-autonomy agents
   useEffect(() => {
@@ -878,7 +879,7 @@ const TheLastCodeGame = () => {
     }, 1000); // Check every second
 
     return () => clearInterval(verificationInterval);
-  }, [agentsInVerificationMode, activeAssignments]);
+  }, [agentsInVerificationMode, activeAssignments, verifyTask]);
 
   // Keyboard shortcuts with new additions
   useEffect(() => {
@@ -996,7 +997,11 @@ const TheLastCodeGame = () => {
     ownedAgents,
     managementUnlocked,
     money,
-    activeModel
+    activeModel,
+    assignTask,
+    purchaseModel,
+    refactorCode,
+    writeCode
   ]);
 
   // Auto-increment from AI models with improved typing animation
@@ -1026,7 +1031,7 @@ const TheLastCodeGame = () => {
       clearInterval(interval);
       setIsAIWriting(false);
     };
-  }, [activeModel, visibleCodeSample]);
+  }, [activeModel, visibleCodeSample, typeNextCharacters, updateAICodeShare]);
 
   // Timer for money generation
   useEffect(() => {
@@ -1768,7 +1773,7 @@ const TheLastCodeGame = () => {
             ) : (
               <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
                 {incomingTasks.map(task => {
-                  const taskType = getTaskType(task.type);
+                  // const taskType = getTaskType(task.type); TODO Leverage taskType, at least display, maybe gamify
                   return (
                     <div key={task.id} className="bg-gray-700 p-3 rounded-lg">
                       <div className="flex justify-between items-center">
@@ -1830,7 +1835,7 @@ const TheLastCodeGame = () => {
             ) : (
               <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
                 {activeAssignments.map(assignment => {
-                  const taskType = getTaskType(assignment.task.type);
+                  // const taskType = getTaskType(assignment.task.type); TODO Gamify or at least display
                   return (
                     <div
                       key={assignment.id}
@@ -1904,7 +1909,7 @@ const TheLastCodeGame = () => {
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {TASK_TYPES.map((taskType, index) => {
+          {TASK_TYPES.map((taskType) => {
             const isUnlocked = unlockedTasks.some(t => t.id === taskType.id);
             return (
               <div
