@@ -1543,8 +1543,9 @@ const DernierCode = () => {
         <button
           className="bg-red-600 hover:bg-red-700 px-3 py-2 rounded text-white text-xs font-bold"
           onClick={() => setMoney(prev => prev + 10000000000)} // Add 10 billion
+          hidden={true} // TODO ONLY ON LOCALHOST URL
         >
-          DEBUG
+          DEBUG0111
         </button>
       </div>
 
@@ -1589,7 +1590,7 @@ const DernierCode = () => {
           className={`py-2 px-4 ${activeTab === 'management' ? 'bg-green-600 text-white' : 'bg-gray-800 text-gray-300'} rounded-t-lg flex items-center ${!managementUnlocked ? 'cursor-not-allowed opacity-50' : ''}`}
           onClick={() => managementUnlocked && setActiveTab('management')}
           disabled={!managementUnlocked}
-        >
+        >1
           <Briefcase size={16} className="inline mr-2" />
           {managementUnlocked ? (
             <>AI Management <span className="text-xs opacity-75">[M]</span></>
