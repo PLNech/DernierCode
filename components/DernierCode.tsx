@@ -1,4 +1,4 @@
-// components/TheLastCodeGame.tsx
+// components/DernierCode.tsx
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 import { Terminal, Code, Users, PieChart, Zap, Cpu, Briefcase } from 'lucide-react';
@@ -687,18 +687,18 @@ const syntaxHighlight = (code: string) => {
       /(\/\/.*|\/\*[\s\S]*?\*\/|#.*)/g,
       '<span class="text-green-500">$1</span>'
     );
-
-    // Replace strings - be careful with escaped quotes
-    highlightedCode = highlightedCode.replace(
-      /(['"`])(?:\\\1|.)*?\1/g,
-      match => `<span class="text-yellow-300">${match}</span>`
-    );
-
-    // Replace numbers
-    highlightedCode = highlightedCode.replace(
-      /\b(\d+(?:\.\d+)?)\b/g,
-      '<span class="text-purple-300">$1</span>'
-    );
+    //
+    // // Replace strings - be careful with escaped quotes
+    // highlightedCode = highlightedCode.replace(
+    //   /(['"`])(?:\\\1|.)*?\1/g,
+    //   match => `<span class="text-yellow-300">${match}</span>`
+    // );
+    //
+    // // Replace numbers
+    // highlightedCode = highlightedCode.replace(
+    //   /\b(\d+(?:\.\d+)?)\b/g,
+    //   '<span class="text-purple-300">$1</span>'
+    // );
 
     // Replace keywords (basic list)
     const keywords = [
@@ -724,7 +724,7 @@ const syntaxHighlight = (code: string) => {
   }
 };
 
-const TheLastCodeGame = () => {
+const DernierCode = () => {
   // Game state
   const [codeLines, setCodeLines] = useState(0);
   const [incrementFactor, setIncrementFactor] = useState(5);
@@ -1025,7 +1025,9 @@ const TheLastCodeGame = () => {
       setIncrementFactor(prev => prev + bonus);
 
       // Reset the code lines counter but keep the current code display
-      setCodeLines(0);
+      setTypingPosition(0);
+      setCurrentCodeText('');
+      updateHighlightedText('');
 
       // Don't reset typing position or current code - just update AI code share
       // updateAICodeShare();
@@ -1530,8 +1532,7 @@ const TheLastCodeGame = () => {
     >
       <div className="flex justify-between items-center mb-4">
         <div className="text-center flex-grow">
-          <h1 className="text-3xl font-bold mb-1">Le Dernier Code</h1>
-          <p className="text-gray-400">En 2025, plus tu codes, moins tu codes.</p>
+          <h2 className="text-gray-400">En 2025, plus tu codes, moins tu codes.</h2>
           <button
             className="mt-2 text-xs bg-gray-800 hover:bg-gray-700 px-2 py-1 rounded"
             onClick={() => setShowShortcutHelp(!showShortcutHelp)}
@@ -2132,4 +2133,4 @@ const TheLastCodeGame = () => {
 );
 };
 
-export default TheLastCodeGame;
+export default DernierCode;
