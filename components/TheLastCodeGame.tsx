@@ -3,6 +3,89 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Terminal, Code, Users, PieChart, Zap, Cpu, Briefcase } from 'lucide-react';
 
+
+// Type definitions for better TypeScript suppo
+
+// Add this type definition near your other type definitions:
+type QualityLevel = 'low' | 'medium' | 'high' | 'extreme';
+
+// Then modify your QUALITY_COLORS object to use this type:
+const QUALITY_COLORS: Record<QualityLevel, string> = {
+  low: "text-gray-500",
+  medium: "text-blue-500",
+  high: "text-purple-500",
+  extreme: "text-pink-600 font-bold"
+};
+
+// If you have an AI model interface, update it:
+
+interface Model {
+  name: string;
+  cost: number;
+  autoCodePerSecond: number;
+  quality: QualityLevel;
+  capabilities: string[];
+}
+
+
+interface AgentType {
+  id: string;
+  name: string;
+  cost: number;
+  efficiency: number;
+  autonomy: number;
+  maxTasks: number;
+  maxCount: number;
+}
+
+interface Agent {
+  id: string;
+  type: string;
+  name: string;
+  cost: number;
+  efficiency: number;
+  autonomy: number;
+  maxTasks: number;
+  maxCount: number;
+  currentTasks: number;
+}
+
+interface Task {
+  id: string;
+  type: string;
+  name: string;
+  description: string;
+  reward: number;
+  complexity: number;
+  timeToComplete: number;
+  expiresIn: number;
+  status: string;
+}
+
+interface Assignment {
+  id: string;
+  task: Task;
+  agent: Agent;
+  status: string;
+  verified: boolean;
+  progress: number;
+  startedAt: number;
+  completedAt?: number;
+}
+
+interface TaskType {
+  id: string;
+  name: string;
+  description: string;
+  unlockCost: number;
+  minReward: number;
+  maxReward: number;
+  complexity: number;
+  timeRequired: number; // 5 seconds
+  icon: string;
+}
+
+
 // Code samples with language-specific syntax highlighting classes
 const CODE_SAMPLES = [
   {
@@ -396,7 +479,7 @@ const CODE_SAMPLES = [
 ];
 
 // AI models data with renamed "tools" to "capabilities"
-const AI_MODELS = [
+const AI_MODELS: Model[] = [
   {
     name: "Phi3",
     cost: 1000,
@@ -463,7 +546,7 @@ const AI_MODELS = [
 ];
 
 // Freelance task data with updated durations
-const TASK_TYPES = [
+const TASK_TYPES: TaskType[] = [
   {
     id: "text-processing",
     name: "Text Processing",
@@ -534,7 +617,7 @@ const TASK_TYPES = [
 
 // AI Agent data with updated autonomy levels and prices
 // Sorted in ascending order of autonomy for consistent display
-const AI_AGENT_TYPES = [
+const AI_AGENT_TYPES: AgentType[] = [
   {
     id: "junior",
     name: "Junior AI Agent",
@@ -591,16 +674,8 @@ const AI_AGENT_TYPES = [
   }
 ];
 
-// Quality color mapping
-const QUALITY_COLORS = {
-  low: "text-gray-500",
-  medium: "text-blue-500",
-  high: "text-purple-500",
-  extreme: "text-pink-600 font-bold"
-};
-
 // Syntax highlighting function - simplistic version
-const syntaxHighlight = (code) => {
+const syntaxHighlight = (code: string) => {
   if (!code) return '';
 
   // Make a copy of the code to avoid modifying the original
@@ -655,7 +730,7 @@ const TheLastCodeGame = () => {
   const [incrementFactor, setIncrementFactor] = useState(5);
   const [money, setMoney] = useState(0);
   const [moneyTimer, setMoneyTimer] = useState(5);
-  const [activeModel, setActiveModel] = useState(null);
+  const [activeModel, setActiveModel] = useState<Model>();
   const [aiCodeShare, setAiCodeShare] = useState(0);
   const [showUpgradesModal, setShowUpgradesModal] = useState(false);
   const [highlightedText, setHighlightedText] = useState('');
@@ -670,9 +745,9 @@ const TheLastCodeGame = () => {
 
   // Management tab state
   const [unlockedTasks, setUnlockedTasks] = useState([TASK_TYPES[0]]);
-  const [ownedAgents, setOwnedAgents] = useState([]);
-  const [activeAssignments, setActiveAssignments] = useState([]);
-  const [incomingTasks, setIncomingTasks] = useState([]);
+  const [ownedAgents, setOwnedAgents] = useState<Agent[]>([]);
+  const [activeAssignments, setActiveAssignments] = useState<Assignment[]>([]);
+  const [incomingTasks, setIncomingTasks] = useState<Task[]>([]);
   const [completedTasks, setCompletedTasks] = useState(0);
 
   // New state for verification mode, not using set yet
@@ -689,19 +764,288 @@ const TheLastCodeGame = () => {
   const gameContainerRef = useRef(null);
   const codeRef = useRef(null);
 
-  // Initialize code sample
-  useEffect(() => {
-    setCurrentCodeText('');
-    setTypingPosition(0);
-    updateHighlightedText('');
-  }, [visibleCodeSample, updateHighlightedText]);
+
+  const getAgentCount = (agentTypeId: string): number => {
+    return ownedAgents.filter(agent => agent.type === agentTypeId).length;
+  };
+
+  // Update highlighted text when code changes
+  const updateHighlightedText = (text: string) => {
+    const highlighted = syntaxHighlight(
+      text
+    );
+    setHighlightedText(highlighted);
+  };
+
+  const assignTask = (task: Task, agent: Agent) => {
+    // Get agent type with null safety
+    const agentType = getAgentType(agent.type);
+
+    // Check if agent type exists and if agent can take more tasks
+    if (!agentType || agent.currentTasks >= agentType.maxTasks) return;
+
+    // Create new assignment with appropriate status
+    const newAssignment = {
+      id: `assignment-${Date.now()}`,
+      task,
+      agent,
+      status: agentType.autonomy <= 0.3 ? "pending-verification" : "in-progress",
+      verified: agentType.autonomy > 0.5,
+      progress: 0,
+      startedAt: Date.now()
+    };
+
+    // Update agent's task count
+    setOwnedAgents(prev =>
+      prev.map(a =>
+        a.id === agent.id
+        ? { ...a, currentTasks: a.currentTasks + 1 }
+        : a
+    )
+    );
+
+    // Remove task from incoming tasks
+    setIncomingTasks(prev => prev.filter(t => t.id !== task.id));
+
+    // Add to active assignments
+    setActiveAssignments(prev => [...prev, newAssignment]);
+  };
+
+  // Also need to fix the verifyTask function with similar null checking:
+  const verifyTask = (assignmentId: string) => {
+    setActiveAssignments(prev =>
+      prev.map(assignment => {
+        if (assignment.id === assignmentId) {
+          const agentType = getAgentType(assignment.agent.type);
+
+          // Add null check
+          if (!agentType) return assignment;
+
+          // If autonomy > 0.3, auto-complete after verification
+          if (agentType.autonomy > 0.3) {
+            return {
+              ...assignment,
+              status: "in-progress",
+              verified: true
+            };
+          } else {
+            return {
+              ...assignment,
+              status: "verified",
+              verified: true
+            };
+          }
+        }
+        return assignment;
+      })
+    );
+  };
+
+  // Management tab actions
+  const unlockTaskType = (taskType: TaskType) => {
+    if (money < taskType.unlockCost) return;
+
+    setMoney(prev => prev - taskType.unlockCost);
+    setUnlockedTasks(prev => [...prev, taskType]);
+  };
+
+  // Complete task manually
+  const completeTask = (assignmentId: string) => {
+    setActiveAssignments(prev =>
+      prev.map(assignment => {
+        if (assignment.id === assignmentId && assignment.status === "verified") {
+          // Release the agent
+          setOwnedAgents(agents =>
+            agents.map(a =>
+              a.id === assignment.agent.id
+              ? { ...a, currentTasks: a.currentTasks - 1 }
+              : a
+          )
+        );
+
+        // Add money
+        setMoney(m => m + assignment.task.reward);
+        setCompletedTasks(ct => ct + 1);
+
+        return {
+          ...assignment,
+          status: "completed",
+          progress: 1
+        };
+        }
+        return assignment;
+      })
+    );
+  };
+
+  // Helpers
+  const getTaskType = (taskTypeId: string) => {
+    return TASK_TYPES.find(type => type.id === taskTypeId);
+  };
+
+  const getAgentType = (agentTypeId: string) => {
+  // FIXME AVOID NULLABLE WITHOUT DEFAULTING TO FIRST ONE
+    return AI_AGENT_TYPES.find(type => type.id === agentTypeId) || AI_AGENT_TYPES[0];
+  };
+
+  const getAvailableAgents = () => {
+    return ownedAgents.filter(agent => {
+      const agentType = getAgentType(agent.type);
+      if (agentType) {
+        return agent.currentTasks < agentType.maxTasks;
+      }
+    });
+  };
+
+  const purchaseAgent = (agentType: AgentType) => {
+    if (money < agentType.cost) return;
+
+    setMoney(prev => prev - agentType.cost);
+
+    const newAgent = {
+      id: `agent-${Date.now()}`,
+      type: agentType.id,
+      cost: agentType.cost,
+      name: `${agentType.name} #${ownedAgents.length + 1}`,
+      efficiency: agentType.efficiency,
+      autonomy: agentType.autonomy,
+      maxTasks: agentType.maxTasks,
+      maxCount: agentType.maxCount,
+      currentTasks: 0
+    };
+
+    setOwnedAgents(prev => [...prev, newAgent]);
+  };
+
+  // Helper function to format numbers for display
+  const formatNumber = (num: number) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(2) + 'K';
+    return Math.floor(num);
+  };
+
+
+  const purchaseModel = (model: Model) => {
+    if (money < model.cost) return;
+
+    setMoney(prev => prev - model.cost);
+    setActiveModel(model);
+    updateAICodeShare();
+
+    // Check if this model unlocks management
+    if (model.capabilities.includes('agentic')) {
+      setManagementUnlocked(true);
+    }
+  };
+
+    // Function to update AI code share percentage
+    const updateAICodeShare = () => {
+      if (!activeModel) {
+        setAiCodeShare(0);
+        return;
+      }
+
+      // Don't update if in observation mode
+      if (observationMode) return;
+
+      // Calculate AI code share based on active model and total code
+      const manualCode = incrementFactor * 3; // Rough estimate of manual capacity
+      const aiCode = activeModel.autoCodePerSecond;
+      const percentage = (aiCode / (aiCode + manualCode)) * 100;
+      setAiCodeShare(Math.min(percentage, 99.99));
+    };
+
+    // Function to type next characters in the code sample
+    const typeNextCharacters = (count: number) => {
+      const currentSample = CODE_SAMPLES[visibleCodeSample];
+      const sampleCode = currentSample.code;
+
+      if (typingPosition >= sampleCode.length) {
+        // Move to next code sample when current one is complete
+        const nextSample = (visibleCodeSample + 1) % CODE_SAMPLES.length;
+        setVisibleCodeSample(nextSample);
+        setTypingPosition(0);
+        setCurrentCodeText('');
+        updateHighlightedText('');
+        return;
+      }
+
+      // Type next characters
+      const nextPosition = Math.min(typingPosition + count, sampleCode.length);
+      const newText = sampleCode.substring(0, nextPosition);
+      setCurrentCodeText(newText);
+      updateHighlightedText(newText);
+      setTypingPosition(nextPosition);
+    };
+
+    // Calculate refactor bonus
+    const calculateRefactorBonus = () => {
+      if (codeLines < 20) return 0;
+      return Math.max(1, Math.floor(Math.log10(codeLines)));
+    };
+
+    // Game actions
+    const writeCode = () => {
+      console.log('Had', codeLines, ' LoC, now ', codeLines + incrementFactor);
+      setCodeLines(prev => prev + incrementFactor);
+
+      // Ensure typing works correctly by handling current state
+      const currentSample = CODE_SAMPLES[visibleCodeSample];
+      const sampleCode = currentSample.code;
+      const typingChars = Math.ceil(incrementFactor / 2);
+
+      // Special handling for typing to avoid UI glitches
+      if (typingPosition >= sampleCode.length) {
+        // If we're at the end, move to next sample
+        console.log(`Code: we're at the end, move to next sample`, visibleCodeSample+1);
+        const nextSample = (visibleCodeSample + 1) % CODE_SAMPLES.length;
+        setVisibleCodeSample(nextSample);
+        setTypingPosition(0);
+        setCurrentCodeText('');
+        updateHighlightedText('');
+      } else {
+        // Otherwise type next characters
+        console.log(`posChar `, typingPosition + typingChars, ` saLe `, sampleCode.length);
+        const nextPosition = Math.min(typingPosition + typingChars, sampleCode.length);
+        const newText = sampleCode.substring(0, nextPosition);
+        setCurrentCodeText(newText);
+        updateHighlightedText(newText);
+        setTypingPosition(nextPosition);
+        console.log(`Current code: `, newText);
+      }
+
+      updateAICodeShare();
+    };
+
+    const refactorCode = () => {
+      if (codeLines < 20) return;
+
+      // Refactoring bonus scales with log of code lines
+      const bonus = calculateRefactorBonus();
+      setIncrementFactor(prev => prev + bonus);
+
+      // Reset the code lines counter but keep the current code display
+      setCodeLines(0);
+
+      // Don't reset typing position or current code - just update AI code share
+      // updateAICodeShare();
+    };
+
+  //
+  // // Initialize code sample
+  // useEffect(() => {
+  //   setCurrentCodeText('');
+  //   setTypingPosition(0);
+  //   updateHighlightedText('');
+  // }, [visibleCodeSample, updateHighlightedText]);
 
   // Auto-scrolling for code view
-  useEffect(() => {
-    if (codeRef.current) {
-      codeRef.current.scrollTop = codeRef.current.scrollHeight;
-    }
-  }, [highlightedText]);
+  // FIXME: Type error: Property 'scrollTop' does not exist on type 'never'.
+  // useEffect(() => {
+  //   if (codeRef.current) {
+  //     codeRef.current.scrollTop = codeRef.current.scrollHeight;
+  //   }
+  // }, [highlightedText]);
 
   // Keep codeLinesRef updated with latest codeLines value
   useEffect(() => {
@@ -731,12 +1075,12 @@ const TheLastCodeGame = () => {
     };
 
     let currentStep = 1;
-    let timer;
+    let timer: number | undefined;
 
     const runAnimation = () => {
-      if (!animationSteps[currentStep]) return;
+      if (!animationSteps[currentStep as keyof typeof animationSteps]) return;
 
-      const { target, precision, duration } = animationSteps[currentStep];
+      const { target, precision, duration } = animationSteps[currentStep as keyof typeof animationSteps];
       setTargetAiShare(target);
       setAiSharePrecision(precision);
 
@@ -759,7 +1103,7 @@ const TheLastCodeGame = () => {
         } else {
           // Move to next step
           currentStep++;
-          if (animationSteps[currentStep]) {
+          if (animationSteps[currentStep as keyof typeof animationSteps]) {
             setTimeout(runAnimation, 1000); // Pause between steps
           }
         }
@@ -789,7 +1133,7 @@ const TheLastCodeGame = () => {
     // Check if the player has any fully autonomous agents
     const hasAutonomousAgent = ownedAgents.some(agent => {
       const agentType = getAgentType(agent.type);
-      return agentType.autonomy >= 0.95;
+      return agentType !== undefined && agentType.autonomy >= 0.95;
     });
 
     if (hasAutonomousAgent && !isFullyAutomated) {
@@ -799,7 +1143,7 @@ const TheLastCodeGame = () => {
     // Check for level 3 unlock
     const hasSuperAgent = ownedAgents.some(agent => {
       const agentType = getAgentType(agent.type);
-      return agentType.autonomy >= 0.99;
+      return agentType !== undefined && agentType.autonomy >= 0.99;
     });
 
     if (hasSuperAgent && !level3Unlocked) {
@@ -814,21 +1158,24 @@ const TheLastCodeGame = () => {
     const automationInterval = setInterval(() => {
       // Auto-assign tasks to available agents
       const availableAgents = getAvailableAgents();
-      const pendingTasks = [...incomingTasks];
+      const pendingTasks: Task[] = [...incomingTasks];
 
       if (availableAgents.length > 0 && pendingTasks.length > 0) {
         // Sort agents by efficiency
         const sortedAgents = [...availableAgents].sort((a, b) => {
           const aType = getAgentType(a.type);
           const bType = getAgentType(b.type);
-          return bType.efficiency - aType.efficiency;
+          return aType !== undefined && bType !== undefined ? bType.efficiency - aType.efficiency : 0;
         });
 
         // Assign tasks optimally
         sortedAgents.forEach(agent => {
           if (pendingTasks.length > 0) {
             const task = pendingTasks.shift();
-            assignTask(task, agent);
+            // Add null check before calling assignTask
+            if (task !== undefined) {
+              assignTask(task, agent);
+            }
           }
         });
       }
@@ -883,7 +1230,7 @@ const TheLastCodeGame = () => {
 
   // Keyboard shortcuts with new additions
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: any) => { // FIXME Type this event
       // Don't trigger shortcuts if user is typing in an input
       if (e.target.tagName === 'INPUT' ||
         e.target.tagName === 'TEXTAREA' ||
@@ -1175,266 +1522,16 @@ const TheLastCodeGame = () => {
     };
   }, [activeTab]);
 
-  // Update highlighted text when code changes
-  const updateHighlightedText = (text) => {
-    const highlighted = syntaxHighlight(
-      text,
-      CODE_SAMPLES[visibleCodeSample].language
-    );
-    setHighlightedText(highlighted);
-  };
-
-  // Function to update AI code share percentage
-  const updateAICodeShare = () => {
-    if (!activeModel) {
-      setAiCodeShare(0);
-      return;
-    }
-
-    // Don't update if in observation mode
-    if (observationMode) return;
-
-    // Calculate AI code share based on active model and total code
-    const manualCode = incrementFactor * 10; // Rough estimate of manual capacity
-    const aiCode = activeModel.autoCodePerSecond;
-    const percentage = (aiCode / (aiCode + manualCode)) * 100;
-    setAiCodeShare(Math.min(percentage, 99.99));
-  };
-
-  // Function to type next characters in the code sample
-  const typeNextCharacters = (count) => {
-    const currentSample = CODE_SAMPLES[visibleCodeSample];
-    const sampleCode = currentSample.code;
-
-    if (typingPosition >= sampleCode.length) {
-      // Move to next code sample when current one is complete
-      const nextSample = (visibleCodeSample + 1) % CODE_SAMPLES.length;
-      setVisibleCodeSample(nextSample);
-      setTypingPosition(0);
-      setCurrentCodeText('');
-      updateHighlightedText('');
-      return;
-    }
-
-    // Type next characters
-    const nextPosition = Math.min(typingPosition + count, sampleCode.length);
-    const newText = sampleCode.substring(0, nextPosition);
-    setCurrentCodeText(newText);
-    updateHighlightedText(newText);
-    setTypingPosition(nextPosition);
-  };
-
-  // Calculate refactor bonus
-  const calculateRefactorBonus = () => {
-    if (codeLines < 20) return 0;
-    return Math.max(1, Math.floor(Math.log10(codeLines)));
-  };
-
-  // Game actions
-  const writeCode = () => {
-    setCodeLines(prev => prev + incrementFactor);
-
-    // Ensure typing works correctly by handling current state
-    const currentSample = CODE_SAMPLES[visibleCodeSample];
-    const sampleCode = currentSample.code;
-    const typingChars = Math.ceil(incrementFactor / 2);
-
-    // Special handling for typing to avoid UI glitches
-    if (typingPosition >= sampleCode.length) {
-      // If we're at the end, move to next sample
-      const nextSample = (visibleCodeSample + 1) % CODE_SAMPLES.length;
-      setVisibleCodeSample(nextSample);
-      setTypingPosition(0);
-      setCurrentCodeText('');
-      updateHighlightedText('');
-    } else {
-      // Otherwise type next characters
-      const nextPosition = Math.min(typingPosition + typingChars, sampleCode.length);
-      const newText = sampleCode.substring(0, nextPosition);
-      setCurrentCodeText(newText);
-      updateHighlightedText(newText);
-      setTypingPosition(nextPosition);
-    }
-
-    updateAICodeShare();
-  };
-
-  const refactorCode = () => {
-    if (codeLines < 20) return;
-
-    // Refactoring bonus scales with log of code lines
-    const bonus = calculateRefactorBonus();
-    setIncrementFactor(prev => prev + bonus);
-
-    // Reset the code lines counter but keep the current code display
-    setCodeLines(0);
-
-    // Don't reset typing position or current code - just update AI code share
-    updateAICodeShare();
-  };
-
-  const purchaseModel = (model) => {
-    if (money < model.cost) return;
-
-    setMoney(prev => prev - model.cost);
-    setActiveModel(model);
-    updateAICodeShare();
-
-    // Check if this model unlocks management
-    if (model.capabilities.includes('agentic')) {
-      setManagementUnlocked(true);
-    }
-  };
-
-  // Management tab actions
-  const unlockTaskType = (taskType) => {
-    if (money < taskType.unlockCost) return;
-
-    setMoney(prev => prev - taskType.unlockCost);
-    setUnlockedTasks(prev => [...prev, taskType]);
-  };
-
-  const purchaseAgent = (agentType) => {
-    if (money < agentType.cost) return;
-
-    setMoney(prev => prev - agentType.cost);
-
-    const newAgent = {
-      id: `agent-${Date.now()}`,
-      type: agentType.id,
-      name: `${agentType.name} #${ownedAgents.length + 1}`,
-      efficiency: agentType.efficiency,
-      autonomy: agentType.autonomy,
-      maxTasks: agentType.maxTasks,
-      currentTasks: 0
-    };
-
-    setOwnedAgents(prev => [...prev, newAgent]);
-  };
-
-  // Modified assignment logic to handle autonomy levels
-  const assignTask = (task, agent) => {
-    // Check if agent can take more tasks
-    if (agent.currentTasks >= getAgentType(agent.type).maxTasks) return;
-
-    const agentType = getAgentType(agent.type);
-
-    // Create new assignment with appropriate status
-    const newAssignment = {
-      id: `assignment-${Date.now()}`,
-      task,
-      agent,
-      status: agentType.autonomy <= 0.3 ? "pending-verification" : "in-progress",
-      verified: agentType.autonomy > 0.5,
-      progress: 0,
-      startedAt: Date.now()
-    };
-
-    // Update agent's task count
-    setOwnedAgents(prev =>
-      prev.map(a =>
-        a.id === agent.id
-        ? { ...a, currentTasks: a.currentTasks + 1 }
-        : a
-    )
-  );
-
-  // Remove task from incoming tasks
-  setIncomingTasks(prev => prev.filter(t => t.id !== task.id));
-
-  // Add to active assignments
-  setActiveAssignments(prev => [...prev, newAssignment]);
-  };
-
-  // Verify task
-  const verifyTask = (assignmentId) => {
-    setActiveAssignments(prev =>
-      prev.map(assignment => {
-        if (assignment.id === assignmentId) {
-          const agentType = getAgentType(assignment.agent.type);
-
-          // If autonomy > 0.3, auto-complete after verification
-          if (agentType.autonomy > 0.3) {
-            return {
-              ...assignment,
-              status: "in-progress",
-              verified: true
-            };
-          } else {
-            return {
-              ...assignment,
-              status: "verified",
-              verified: true
-            };
-          }
-        }
-        return assignment;
-      })
-    );
-  };
-
-  // Complete task manually
-  const completeTask = (assignmentId) => {
-    setActiveAssignments(prev =>
-      prev.map(assignment => {
-        if (assignment.id === assignmentId && assignment.status === "verified") {
-          // Release the agent
-          setOwnedAgents(agents =>
-            agents.map(a =>
-              a.id === assignment.agent.id
-              ? { ...a, currentTasks: a.currentTasks - 1 }
-              : a
-          )
-        );
-
-        // Add money
-        setMoney(m => m + assignment.task.reward);
-        setCompletedTasks(ct => ct + 1);
-
-        return {
-          ...assignment,
-          status: "completed",
-          progress: 1
-        };
-        }
-        return assignment;
-      })
-    );
-  };
-
-  // Helpers
-  const getTaskType = (taskTypeId) => {
-    return TASK_TYPES.find(type => type.id === taskTypeId);
-  };
-
-  const getAgentType = (agentTypeId) => {
-    return AI_AGENT_TYPES.find(type => type.id === agentTypeId);
-  };
-
-  const getAvailableAgents = () => {
-    return ownedAgents.filter(agent => {
-      const agentType = getAgentType(agent.type);
-      return agent.currentTasks < agentType.maxTasks;
-    });
-  };
-
-  // Helper function to format numbers for display
-  const formatNumber = (num) => {
-    if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(2) + 'K';
-    return Math.floor(num);
-  };
-
   return (
     <div
       className="flex flex-col min-h-screen bg-gray-900 text-white p-4"
       ref={gameContainerRef}
-      tabIndex="0" // Make container focusable
+      tabIndex={0} // Make container focusable
     >
       <div className="flex justify-between items-center mb-4">
         <div className="text-center flex-grow">
-          <h1 className="text-3xl font-bold mb-1">AI Code Revolution</h1>
-          <p className="text-gray-400">Automate coding with increasingly powerful AI models</p>
+          <h1 className="text-3xl font-bold mb-1">Le Dernier Code</h1>
+          <p className="text-gray-400">En 2025, plus tu codes, moins tu codes.</p>
           <button
             className="mt-2 text-xs bg-gray-800 hover:bg-gray-700 px-2 py-1 rounded"
             onClick={() => setShowShortcutHelp(!showShortcutHelp)}
@@ -1516,16 +1613,16 @@ const TheLastCodeGame = () => {
 
       {/* Shared stats bar */}
       <div className="bg-gray-800 p-4 rounded-lg mb-6 flex justify-between items-center">
-        <div className="flex items-center space-x-8">
+        <div className="flex items-center space-x-8 m-2 text-xl">
           <div>
             <span className="text-gray-400">Code Lines:</span>
-            <span className="ml-2 font-bold">{formatNumber(codeLines)}</span>
-            <span className="text-gray-400 ml-1">(+{formatNumber(incrementFactor)})</span>
+            <span className="ml-2 font-bold text-3xl">{formatNumber(codeLines)}</span>
+            <span className="text-gray-400 m-3 text-purple-400 text-2xl">(+{formatNumber(incrementFactor)})</span>
           </div>
 
           <div>
             <span className="text-gray-400">Money:</span>
-            <span className="ml-2 font-bold">${formatNumber(money)}</span>
+            <span className="ml-2 font-bold2 text-green-600 text-3xl">${formatNumber(money)}</span>
           </div>
 
           <div>
@@ -1538,8 +1635,12 @@ const TheLastCodeGame = () => {
 
         <div className="flex items-center space-x-4">
           <div>
-            <span className="text-gray-400">AI Code Share:</span>
-            <span className="ml-2 font-bold text-green-400">{aiCodeShare.toFixed(aiSharePrecision)}%</span>
+            <span className="text-gray-400 text-xl">AI Code Share:</span>
+            <span className="ml-2 font-bold text-green-400 text-4xl">{aiCodeShare.toFixed(aiSharePrecision)}%</span>
+          </div>
+          <div>
+            <span className="text-gray-400 text-xl">Human Code Share:</span>
+            <span className="ml-2 font-bold text-red-400 text-4xl">{(100 - aiCodeShare).toFixed(aiSharePrecision)}%</span>
           </div>
 
           {activeTab === 'management' && (
@@ -1616,14 +1717,14 @@ const TheLastCodeGame = () => {
 
             <button
               onClick={() => setShowUpgradesModal(!showUpgradesModal)}
-              className="w-full py-2 px-4 bg-gray-700 hover:bg-gray-600 rounded-md transition"
+              className="w-full py-2 px-4 bg-gray-700 hover:bg-gray-600 rounded-md transition text-xl"
             >
               {showUpgradesModal ? 'Hide Upgrades' : 'Show Upgrades'} <span className="text-xs opacity-75">[U]</span>
             </button>
           </div>
 
           <div className="mt-6">
-            <h3 className="text-md font-semibold mb-2">Current AI Model</h3>
+            <h3 className="text-lg font-semibold mb-2">Current AI Model</h3>
             {activeModel ? (
               <div className="bg-gray-700 p-3 rounded-lg">
                 <div className="flex justify-between items-center mb-1">
