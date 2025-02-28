@@ -1,23 +1,23 @@
 # The Last Line of Code
 
-Tab 1: you Code
+## Tab 1: you Code
 faster with each llm
 Number going up: lines of code, money
 
-Tab 2 you Manage
+## Tab 2 you Manage
 [unlock on first llm with agentic capabilities]
 more tasks with each llm
 Number going up: money, agents count
 
-
-Tab 3 you Trade
+## Tab 3 you Trade
+[unlocks ]
 with the money
 
 and each llm makes trades easier
 adds features, limit orders etc
 Number going up : MONEY,
 
-Level 4 you acquire
+# Level 4 you acquire
 a business after another
 and put an LLM as manager
 
