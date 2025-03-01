@@ -882,6 +882,9 @@ const DernierCode = () => {
               case 'M':
                 if (managementUnlocked) setActiveTab('management');
                 break;
+              case 'T':
+              case 't':
+                if (level3Unlocked) setActiveTab('trading');
               case '?':
                 setShowShortcutHelp(prev => !prev);
                 break;
@@ -1151,7 +1154,7 @@ const DernierCode = () => {
         <button
           className="bg-red-600 hover:bg-red-700 px-3 py-2 rounded text-white text-xs font-bold"
           onClick={() => setMoney(prev => prev + 10000000000)} // Add 10 billion
-          hidden={pathname.includes("localhost")} // ONLY ON LOCALHOST URL
+          hidden={!pathname.includes("localhost")} // ONLY ON LOCALHOST URL
           data-name={"DEBUG"}
         >
           D#BUG

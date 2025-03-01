@@ -1261,7 +1261,7 @@ const TradingGame = () => {
       <button
         className="absolute bottom-12 left-12 bg-transparent hover:bg-red-900/30 text-red-500 border-2 border-red-900 text-xs font-bold py-2 px-4 rounded z-10"
         onClick={() => setMoney(prev => prev + 1000000000)} // Add 1B
-        hidden={pathname.includes("localhost")} // ONLY ON LOCALHOST URL
+        hidden={!pathname.includes("localhost")} // ONLY ON LOCALHOST URL
       >
         DEBUG +1B
       </button>
