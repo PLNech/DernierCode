@@ -58,6 +58,16 @@ interface PolicyCard {
     news: NewsEntry[]; // Array of news entries related to this policy
 }
 
+interface Upgrade {
+    id: string;
+    name: string;
+    description: string;
+    level: number;
+    maxLevel: number;
+    cost: (level: number) => number;
+    effect: string;
+}
+
 // Sample country data
 const initialCountry = {
     id: 'france',
@@ -241,7 +251,8 @@ const TRAITS_CONFIG = {
     diplomacy: { name: 'Diplomacy', shortcode: 'D', value: 0, color: 'text-yellow-400' }
 };
 
-const UPGRADES = [
+// Available upgrades
+const INITIAL_UPGRADES = [
     {
         id: 'draw-more',
         name: 'Draw More Cards',
@@ -250,20 +261,37 @@ const UPGRADES = [
         maxLevel: 5,
         cost: (level) => 10 * (level + 1), // 10, 20, 30, 40, 50
         effect: 'Draw +1 policy card each round'
+    },
+    {
+        id: 'reduced-timer',
+        name: 'Faster Decisions',
+        description: 'Decrease the decision timer, allowing you to enact policies more rapidly.',
+        level: 0,
+        maxLevel: 3,
+        cost: (level) => 15 * (level + 1), // 15, 30, 45
+        effect: 'Reduce timer by 2 seconds'
+    },
+    {
+        id: 'policy-boost',
+        name: 'Enhanced Policies',
+        description: 'Increase the effectiveness of your policy cards for stronger influence.',
+        level: 0,
+        maxLevel: 4,
+        cost: (level) => 20 * (level + 1), // 20, 40, 60, 80
+        effect: '+15% to all policy effects'
     }
-];  // News ticker effect
+];
 
-
-const CountryInfluenceGame = () => {
+const CountryInfluenceGame = () {
     // Game state
     const [country, setCountry] = useState(initialCountry);
     const [cardCount, setCardCount] = useState(2);
-    const [upgrades, setUpgrades] = useState([]);
+    const [upgrades, setUpgrades] = useState(INITIAL_UPGRADES);
     const [activeCards, setActiveCards] = useState([]);
-    const [selectedCardIndex, setSelectedCardIndex] = useState<number>(0);
+    const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(0);
     const [timeRemaining, setTimeRemaining] = useState(10);
     const [isPaused, setIsPaused] = useState(false);
-    const [influenceEvents, setInfluenceEvents] = useState([]);
+    const [influenceEvents, setInfluenceEvents] = useState<string[]>([]);
     const [round, setRound] = useState(1);
     const [currentNewsIndex, setCurrentNewsIndex] = useState(0);
     const [newsReel, setNewsReel] = useState([
@@ -271,82 +299,111 @@ const CountryInfluenceGame = () => {
         { id: 'default-2', text: '"Opinion poll shows 73% of population would willingly accept new overlords if they promised better weather."' }
     ]);
 
-    // UI
+    // UI state
     const [showUpgradesModal, setShowUpgradesModal] = useState(false);
 
     // Draw random cards
     const drawCards = () => {
+        // Get the current card draw count (base 2 + upgrades)
+        const currentDrawCount = 2 + getUpgradeLevel('draw-more');
+
         const shuffled = [...POLICY_CARDS].sort(() => 0.5 - Math.random());
-        setActiveCards(shuffled.slice(0, cardCount));
+        setActiveCards(shuffled.slice(0, currentDrawCount));
+
         // Randomly pre-select one card (1/N% chance for each)
-        setSelectedCardIndex(Math.random() < (1/cardCount) ? 0 : 1);
-        setTimeRemaining(10);
+        setSelectedCardIndex(Math.floor(Math.random() * currentDrawCount));
+
+        // Set timer based on the reduced-timer upgrade (base 10 - 2 seconds per level, minimum 4)
+        const timerReduction = getUpgradeLevel('reduced-timer') * 2;
+        const newTimer = Math.max(4, 10 - timerReduction);
+        setTimeRemaining(newTimer);
+    };
+
+    // Get the level of a specific upgrade
+    const getUpgradeLevel = (upgradeId) => {
+        const upgrade = upgrades.find(u => u.id === upgradeId);
+        return upgrade ? upgrade.level : 0;
     };
 
     const purchaseUpgrade = (upgradeId) => {
-        setUpgrades(prevUpgrades => {
-            return prevUpgrades.map(upgrade => {
-                if (upgrade.id === upgradeId) {
-                    // Check if already at max level
-                    if (upgrade.level >= upgrade.maxLevel) {
-                        return upgrade;
-                    }
+        const upgradeIndex = upgrades.findIndex(u => u.id === upgradeId);
+        if (upgradeIndex === -1) return;
 
-                    // Calculate cost
-                    const nextLevel = upgrade.level + 1;
-                    const costPerTrait = upgrade.cost(upgrade.level);
+        const upgrade = upgrades[upgradeIndex];
 
-                    // Check if country has enough in all traits
-                    for (const trait of TRAITS) {
-                        if (country.traits[trait] < costPerTrait) {
-                            // Add to log that player can't afford
-                            setInfluenceEvents(prev => [
-                                `Not enough ${TRAITS_CONFIG[trait].name} to purchase ${upgrade.name} Level ${nextLevel}`,
-                                ...prev
-                            ]);
-                            return upgrade;
-                        }
-                    }
+        // Check if already at max level
+        if (upgrade.level >= upgrade.maxLevel) {
+            return;
+        }
 
-                    // Deduct cost from all traits
-                    const newTraits = { ...country.traits };
-                    for (const trait of TRAITS) {
-                        newTraits[trait] -= costPerTrait;
-                    }
+        // Calculate cost
+        const nextLevel = upgrade.level + 1;
+        const costPerTrait = upgrade.cost(upgrade.level);
 
-                    // Update country traits
-                    setCountry(prev => ({
-                        ...prev,
-                        traits: newTraits
-                    }));
+        // Check if country has enough in all traits
+        for (const trait of TRAITS) {
+            if (country.traits[trait] < costPerTrait) {
+                // Add to log that player can't afford
+                setInfluenceEvents(prev => [
+                    `Not enough ${TRAITS_CONFIG[trait].name} to purchase ${upgrade.name} Level ${nextLevel}`,
+                    ...prev
+                ]);
+                return;
+            }
+        }
 
-                    // Add to log
-                    setInfluenceEvents(prev => [
-                        `Purchased ${upgrade.name} Level ${nextLevel}`,
-                        ...prev
-                    ]);
+        // Deduct cost from all traits
+        const newTraits = { ...country.traits };
+        for (const trait of TRAITS) {
+            newTraits[trait] -= costPerTrait;
+        }
 
-                    // Return updated upgrade
-                    return {
-                        ...upgrade,
-                        level: nextLevel
-                    };
-                }
-                return upgrade;
-            });
-        });
-    };// Available upgrades
+        // Update country traits
+        setCountry(prev => ({
+            ...prev,
+            traits: newTraits
+        }));
 
+        // Update upgrade level
+        const updatedUpgrades = [...upgrades];
+        updatedUpgrades[upgradeIndex] = {
+            ...upgrade,
+            level: nextLevel
+        };
+        setUpgrades(updatedUpgrades);
+
+        // Apply special effects based on upgrade type
+        if (upgradeId === 'draw-more') {
+            setCardCount(2 + nextLevel);
+        } else if (upgradeId === 'reduced-timer') {
+            // Recalculate the timer for the next round
+            const timerReduction = nextLevel * 2;
+            const newTimer = Math.max(4, 10 - timerReduction);
+            setTimeRemaining(newTimer);
+        }
+
+        // Add to log
+        setInfluenceEvents(prev => [
+            `Purchased ${upgrade.name} Level ${nextLevel}`,
+            ...prev
+        ]);
+    };
 
     // Apply policy effect to country
     const applyPolicy = (card) => {
+        if (!card) return;
+
         setCountry(prevCountry => {
             const newTraits = { ...prevCountry.traits };
 
-            // Apply bonus
-            newTraits[card.bonusTrait] = Math.min(100, newTraits[card.bonusTrait] + card.bonusValue);
+            // Get policy boost level effect (each level gives +15% boost)
+            const boostMultiplier = 1 + (getUpgradeLevel('policy-boost') * 0.15);
 
-            // Apply malus
+            // Apply bonus with boost
+            const boostedBonusValue = Math.round(card.bonusValue * boostMultiplier);
+            newTraits[card.bonusTrait] = Math.min(100, newTraits[card.bonusTrait] + boostedBonusValue);
+
+            // Apply malus (not affected by boost)
             newTraits[card.malusTrait] = Math.max(0, newTraits[card.malusTrait] - card.malusValue);
 
             // Calculate new influence level
@@ -425,16 +482,13 @@ const CountryInfluenceGame = () => {
 
     // Toggle card selection
     const toggleCardSelection = () => {
-        if (selectedCardIndex !== null && activeCards.length > 0) {
-            // Toggle between 0 and 1
-            setSelectedCardIndex(selectedCardIndex === 0 ? 1 : 0);
+        if (activeCards.length > 1) {
+            setSelectedCardIndex(prev =>
+                prev === null ? 0 : (prev + 1) % activeCards.length
+            );
         }
     };
 
-    const toggleUpgrades = () => {
-        setShowUpgradesModal(!showUpgradesModal);
-        console.log(`Upgrades now ${showUpgradesModal? 'active' : 'inactive'}`);
-    }
     // Handle card click
     const handleCardClick = (index) => {
         setSelectedCardIndex(index);
@@ -446,7 +500,6 @@ const CountryInfluenceGame = () => {
             applyPolicy(activeCards[selectedCardIndex]);
         }
     };
-
 
     // Render the star chart for country traits
     const renderStarChart = () => {
@@ -562,6 +615,98 @@ const CountryInfluenceGame = () => {
                         );
                     })}
                 </svg>
+
+                {/* Upgrades Modal */}
+                {showUpgradesModal && (
+                    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+                        <div className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-xl font-bold text-cyan-400">Upgrades</h2>
+                                <button
+                                    className="text-gray-400 hover:text-white"
+                                    onClick={() => setShowUpgradesModal(false)}
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <div className="mb-4 p-3 bg-gray-700 rounded-lg">
+                                <h3 className="text-sm font-bold text-gray-300 mb-2">Country Resources</h3>
+                                <div className="grid grid-cols-5 gap-2">
+                                    {Object.entries(country.traits).map(([trait, value]) => (
+                                        <div key={trait} className="text-center">
+                                            <div className={`text-sm font-bold mb-1 ${TRAITS_CONFIG[trait].color}`}>
+                                                {TRAITS_CONFIG[trait].shortcode}
+                                            </div>
+                                            <div className="text-lg font-bold">{value}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                {upgrades.map((upgrade) => {
+                                    // Calculate cost for next level
+                                    const nextLevel = upgrade.level + 1;
+                                    const isMaxLevel = upgrade.level >= upgrade.maxLevel;
+                                    const costPerTrait = upgrade.cost(upgrade.level);
+                                    const canAfford = !isMaxLevel && Object.values(country.traits).every(v => v >= costPerTrait);
+                                    const bgColor = isMaxLevel ? 'bg-green-900' : (canAfford ? 'bg-blue-800' : 'bg-gray-700');
+
+                                    return (
+                                        <div
+                                            key={upgrade.id}
+                                            className={`${bgColor} rounded-lg p-4 transition-colors duration-200`}
+                                        >
+                                            <div className="flex justify-between items-center mb-2">
+                                                <h3 className="font-bold text-lg">
+                                                    {upgrade.name} <span className="text-sm">Level {upgrade.level}/{upgrade.maxLevel}</span>
+                                                </h3>
+                                                {!isMaxLevel && (
+                                                    <div className="text-sm bg-gray-900 px-2 py-1 rounded">
+                                                        Cost: {costPerTrait} each trait
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <p className="text-sm text-gray-300 mb-3">{upgrade.description}</p>
+
+                                            <div className="flex items-center justify-between">
+                                                <div className="text-xs text-gray-400">
+                                                    {upgrade.effect} ({upgrade.level} → {nextLevel > upgrade.maxLevel ? upgrade.maxLevel : nextLevel})
+                                                </div>
+
+                                                <button
+                                                    className={`px-3 py-1 rounded text-sm ${
+                                                        isMaxLevel
+                                                            ? 'bg-green-700 text-green-200 cursor-not-allowed'
+                                                            : canAfford
+                                                                ? 'bg-blue-600 hover:bg-blue-500 text-white'
+                                                                : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                                                    }`}
+                                                    onClick={() => !isMaxLevel && canAfford && purchaseUpgrade(upgrade.id)}
+                                                    disabled={isMaxLevel || !canAfford}
+                                                >
+                                                    {isMaxLevel ? 'Maxed Out' : 'Upgrade'}
+                                                </button>
+                                            </div>
+
+                                            {/* Progress bar */}
+                                            <div className="mt-2 bg-gray-900 h-2 rounded-full">
+                                                <div
+                                                    className="bg-cyan-600 h-2 rounded-full"
+                                                    style={{ width: `${(upgrade.level / upgrade.maxLevel) * 100}%` }}
+                                                ></div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     };
@@ -578,8 +723,8 @@ const CountryInfluenceGame = () => {
                     <div className="flex flex-col items-end">
                         <span className="text-sm text-gray-400">Influence Level:</span>
                         <span className={`font-bold ${country.controlled ? 'text-green-400' : 'text-gray-300'}`}>
-              {country.influenceLevel.toFixed(1)}%
-            </span>
+                            {country.influenceLevel.toFixed(1)}%
+                        </span>
                     </div>
                     <div className={`px-2 py-1 rounded text-xs ${
                         country.controlled ? 'bg-green-900 text-green-300' : 'bg-gray-700 text-gray-300'
@@ -604,54 +749,22 @@ const CountryInfluenceGame = () => {
                 </div>
             </div>
 
-            <div className="flex flex-col md:flex-row">
+            <div className="flex flex-col md:flex-row w-full">
                 {/* Left panel - Country traits */}
-                <div className="w-full md:w-1/3 p-4 bg-gray-850 border-r border-gray-800">
-                    <h3 className="text-sm font-semibold text-gray-300 mb-3">Country Stats</h3>
-                    {renderStarChart()}
-
-                    <div className="mt-4 space-y-2">
-                        {Object.entries(country.traits).map(([trait, value]) => (
-                            <div key={trait} className="flex justify-between">
-                <span className={`text-sm ${TRAITS_CONFIG[trait].color}`}>
-                  {TRAITS_CONFIG[trait].name}
-                </span>
-                                <div className="w-32 flex items-center">
-                                    <div className="w-full bg-gray-700 h-2 rounded-full">
-                                        <div
-                                            className={`h-2 rounded-full`}
-                                            style={{
-                                                width: `${value}%`,
-                                                backgroundColor: trait === 'politics' ? '#a78bfa' :
-                                                    trait === 'media' ? '#60a5fa' :
-                                                        trait === 'control' ? '#f87171' :
-                                                            trait === 'trust' ? '#34d399' :
-                                                                '#fcd34d'
-                                            }}
-                                        ></div>
-                                    </div>
-                                    <span className="ml-2 text-sm">{value}</span>
-                                </div>
-                            </div>
-                        ))}
-
-                        <div className="pt-2 border-t border-gray-700 mt-4">
-                            <div className="flex justify-between items-center">
-                                <span className="text-sm text-gray-300">Control Threshold:</span>
-                                <span className="text-xs text-gray-400">Politics > 70, Control > 60</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Right panel - Policy cards */}
                 <div className="w-full md:w-2/3 p-4">
-                    <div className="flex flex-col h-full">
+                    <div className="flex flex-col w-full">
                         {/* Timer bar */}
                         <div className="mb-3">
                             <div className="flex justify-between text-sm text-gray-400 mb-1">
                                 <span>Next Policy in:</span>
-                                <span>{timeRemaining}s</span>
+                                <span>
+                                    {timeRemaining}s
+                                    {getUpgradeLevel('reduced-timer') > 0 && (
+                                        <span className="text-xs text-green-500 ml-1">
+                                            (Faster Decisions Lv.{getUpgradeLevel('reduced-timer')})
+                                        </span>
+                                    )}
+                                </span>
                             </div>
                             <div className="w-full bg-gray-700 rounded-full h-2">
                                 <div
@@ -682,7 +795,14 @@ const CountryInfluenceGame = () => {
                         <span className={`text-sm ${TRAITS_CONFIG[card.bonusTrait].color}`}>
                           {TRAITS_CONFIG[card.bonusTrait].name}
                         </span>
-                                                <span className="text-green-400 font-bold text-lg">+{card.bonusValue}</span>
+                                                <div>
+                                                    <span className="text-green-400 font-bold text-lg">+{card.bonusValue}</span>
+                                                    {getUpgradeLevel('policy-boost') > 0 && (
+                                                        <span className="text-xs text-green-300 ml-1">
+                                                            (+{Math.round(card.bonusValue * getUpgradeLevel('policy-boost') * 0.15)})
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                             <div className="flex justify-between items-center p-2 bg-black bg-opacity-30 rounded">
                         <span className={`text-sm ${TRAITS_CONFIG[card.malusTrait].color}`}>
@@ -692,9 +812,9 @@ const CountryInfluenceGame = () => {
                                             </div>
                                         </div>
 
-                                        {index === selectedCardIndex && activeCards[selectedCardIndex]?.id === card.id && !card.userSelected && (
+                                        {index === selectedCardIndex && !isPaused && (
                                             <div className="mb-2 py-2 text-center text-xs text-yellow-400 bg-yellow-900 bg-opacity-30 rounded animate-pulse">
-                                                Auto-selected
+                                                Selected
                                             </div>
                                         )}
 
@@ -721,12 +841,11 @@ const CountryInfluenceGame = () => {
                             >
                                 Confirm Policy
                             </button>
-                            <button
-                                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 rounded-md text-white transition"
-                                onClick={toggleUpgrades}
-                            >
-                                Upgrades
-                            </button>
+                        </div>
+                    </div>
+                    <div className="flex flex-col h-full">
+                        <div className="flex justify-center gap-3 mb-4">
+                            {renderStarChart()}
                         </div>
 
                         {/* Event log */}
@@ -750,97 +869,16 @@ const CountryInfluenceGame = () => {
                         </div>
                     </div>
                 </div>
-            </div>      {/* Upgrades Modal */}
-            {showUpgradesModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-                    <div className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold text-cyan-400">Upgrades</h2>
-                            <button
-                                className="text-gray-400 hover:text-white"
-                                onClick={() => setShowUpgradesModal(false)}
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
-
-                        <div className="mb-4 p-3 bg-gray-700 rounded-lg">
-                            <h3 className="text-sm font-bold text-gray-300 mb-2">Country Resources</h3>
-                            <div className="grid grid-cols-5 gap-2">
-                                {Object.entries(country.traits).map(([trait, value]) => (
-                                    <div key={trait} className="text-center">
-                                        <div className={`text-sm font-bold mb-1 ${TRAITS_CONFIG[trait].color}`}>
-                                            {TRAITS_CONFIG[trait].shortcode}
-                                        </div>
-                                        <div className="text-lg font-bold">{value}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="space-y-4">
-                            {upgrades.map(upgrade => {
-                                // Calculate cost for next level
-                                const nextLevel = upgrade.level + 1;
-                                const isMaxLevel = upgrade.level >= upgrade.maxLevel;
-                                const costPerTrait = upgrade.cost(upgrade.level);
-                                const canAfford = !isMaxLevel && Object.values(country.traits).every(v => v >= costPerTrait);
-                                const bgColor = isMaxLevel ? 'bg-green-900' : (canAfford ? 'bg-blue-800' : 'bg-gray-700');
-
-                                return (
-                                    <div
-                                        key={upgrade.id}
-                                        className={`${bgColor} rounded-lg p-4 transition-colors duration-200`}
-                                    >
-                                        <div className="flex justify-between items-center mb-2">
-                                            <h3 className="font-bold text-lg">
-                                                {upgrade.name} <span className="text-sm">Level {upgrade.level}/{upgrade.maxLevel}</span>
-                                            </h3>
-                                            {!isMaxLevel && (
-                                                <div className="text-sm bg-gray-900 px-2 py-1 rounded">
-                                                    Cost: {costPerTrait} each trait
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <p className="text-sm text-gray-300 mb-3">{upgrade.description}</p>
-
-                                        <div className="flex items-center justify-between">
-                                            <div className="text-xs text-gray-400">
-                                                {upgrade.effect} ({upgrade.level} → {nextLevel > upgrade.maxLevel ? upgrade.maxLevel : nextLevel})
-                                            </div>
-
-                                            <button
-                                                className={`px-3 py-1 rounded text-sm ${
-                                                    isMaxLevel
-                                                        ? 'bg-green-700 text-green-200 cursor-not-allowed'
-                                                        : canAfford
-                                                            ? 'bg-blue-600 hover:bg-blue-500 text-white'
-                                                            : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                                                }`}
-                                                onClick={() => !isMaxLevel && canAfford && purchaseUpgrade(upgrade.id)}
-                                                disabled={isMaxLevel || !canAfford}
-                                            >
-                                                {isMaxLevel ? 'Maxed Out' : 'Upgrade'}
-                                            </button>
-                                        </div>
-
-                                        {/* Progress bar */}
-                                        <div className="mt-2 bg-gray-900 h-2 rounded-full">
-                                            <div
-                                                className="bg-cyan-600 h-2 rounded-full"
-                                                style={{ width: `${(upgrade.level / upgrade.maxLevel) * 100}%` }}
-                                            ></div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
-            )}
+            </div>
+            <div className="flex justify-between items-center mb-3">
+                <h3 className="text-sm font-semibold text-gray-300">Country Stats</h3>
+                <button
+                    onClick={() => setShowUpgradesModal(true)}
+                    className="px-2 py-1 bg-amber-600 hover:bg-amber-700 text-xs rounded"
+                >
+                    Upgrades
+                </button>
+            </div>
         </div>
     );
 };
