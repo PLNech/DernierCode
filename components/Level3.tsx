@@ -44,11 +44,36 @@ interface Asset {
   basePrice: number;
 }
 
+interface AssetPrices {
+  [key: string]: number;
+}
+
+interface OwnedAssets {
+  [key: string]: number;
+}
+
+interface TrackingData {
+  [key: string]: {
+    minPrice: number;
+    maxPrice: number;
+    lastCycleMin: number;
+    lastCycleMax: number;
+    cycleCount: number;
+    lastActionPrice: number;
+  };
+}
+
 interface AssetPrice {
-  time: string,
-  price: number,
-  change: number,
-  percentChange: string
+  time: string;
+  price: number;
+  change: number;
+  percentChange: string;
+  isUp?: boolean;
+}
+
+interface TooltipProps {
+  active?: boolean;
+  payload?: { payload: AssetPrice }[];
 }
 
 
@@ -229,11 +254,11 @@ const TradingGame = () => {
   const [activeAssetType, setActiveAssetType] = useState(ASSET_TYPES.MEMECOIN);
   const [resolutionLevel, setResolutionLevel] = useState(0);
   const [hasAgent, setHasAgent] = useState<boolean>(false);
-  const [ownedAssets, setOwnedAssets] = useState({});
-  const [assetPrices, setAssetPrices] = useState({});
-  const [priceHistory, setPriceHistory] = useState({});
+  const [ownedAssets, setOwnedAssets] = useState<OwnedAssets>({});
+  const [priceHistory, setPriceHistory] = useState<{[key: string]: AssetPrice[]}>({});
+  const [assetPrices, setAssetPrices] = useState<AssetPrices>({});
   const [selectedAsset, setSelectedAsset] = useState(MEMECOINS[0]);
-  const [chartData, setChartData] = useState([]);
+  const [chartData, setChartData] = useState<AssetPrice[]>([]);
   const [showUpgrades, setShowUpgrades] = useState(false);
   
   // Agent state
@@ -244,8 +269,8 @@ const TradingGame = () => {
   const [agentLogs, setAgentLogs] = useState<AgentLog[]>([]);
   
   // Price tracking for agent
-  const [trackingData, setTrackingData] = useState({});
-  
+  const [trackingData, setTrackingData] = useState<TrackingData>({});
+
   // Simulated time tracking for consistent timestamps
   const [simulatedTime, setSimulatedTime] = useState(new Date('2025-03-01T00:00:00'));
   
@@ -254,7 +279,7 @@ const TradingGame = () => {
   const [profitLoss, setProfitLoss] = useState(0);
   
   // Refs
-  const engineRef = useRef(null);
+  const engineRef = useRef<NodeJS.Timeout | null>(null);
   const lastTickRef = useRef(Date.now());
 
   // Routing
@@ -373,7 +398,7 @@ const TradingGame = () => {
     if (!currentHasAgent || !selectedAsset) return;
 
     const assetId = selectedAsset.id;
-    const currentPrice = assetPrices[assetId];
+    const currentPrice = assetPrices[assetId] ?? selectedAsset.basePrice;
 
     // Initialize tracking data for this asset if it doesn't exist
     if (!trackingData[assetId]) {
@@ -492,7 +517,7 @@ const TradingGame = () => {
   };
 
 // Trading Tooltip Component
-  const PriceTooltip = ( active, payload) => {
+  const PriceTooltip: React.FC<TooltipProps> = ({ active, payload }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
@@ -609,11 +634,8 @@ const TradingGame = () => {
 
   // Initialize asset prices
   const initializeAssetPrices = () => {
-    // TODO: Refactor to maps
-    // const prices = new Map<string, number>();
-    // const history = new Map<string, AssetPrice>();
-    const prices = {};
-    const history = {};
+    const prices: AssetPrices = {};
+    const history: {[key: string]: AssetPrice[]} = {};
     
     // Initialize all asset types
     [MEMECOINS, FOREX_PAIRS, CRYPTOCURRENCIES, FUTURES, STOCKS].forEach((assetGroup: Asset[]) => {
@@ -783,14 +805,14 @@ const TradingGame = () => {
   };
 
   // Trading functions
-  const buyAsset = (assetId, amount) => {
+  const buyAsset = (assetId: string, amount: number) => {
     if (!selectedAsset) return;
     
     const asset = getAssetList().find(a => a.id === assetId);
     if (!asset) return;
     
-    const currentPrice = assetPrices[assetId];
-    const totalCost = currentPrice * amount;
+    const currentPrice: number = assetPrices[assetId];
+    const totalCost: number = currentPrice * amount;
     
     // Check if user has enough money
     if (totalCost > money) {
@@ -840,35 +862,35 @@ const TradingGame = () => {
   };
 
   // Purchasing upgrades
-  const purchaseUpgrade = (upgrade) => {
+  const purchaseUpgrade = (upgrade: Upgrade) => {
     if (money < upgrade.cost) return;
-    
+
     setMoney(prev => prev - upgrade.cost);
-    
-    if (upgrade.type === 'asset') {
-      setUnlockedAssets(prev => [...prev, upgrade.unlocksAsset]);
-    } else if (upgrade.type === 'resolution' && upgrade.level > resolutionLevel) {
+
+    if (upgrade.type === 'asset' && upgrade.unlocksAsset) {
+      setUnlockedAssets(prev => [...prev, upgrade.unlocksAsset!]);
+    } else if (upgrade.type === 'resolution' && upgrade.level && upgrade.level > resolutionLevel) {
       setResolutionLevel(upgrade.level);
     } else if (upgrade.type === 'agent') {
       setHasAgent(true);
       addAgentLog("Trading Agent activated. Ready to assist with trading operations.");
-    } else if (upgrade.type === 'strategy') {
-      setUnlockedStrategies(prev => [...prev, upgrade.strategy]);
+    } else if (upgrade.type === 'strategy' && upgrade.strategy) {
+      setUnlockedStrategies(prev => [...prev, upgrade.strategy!]);
       addAgentLog(`New strategy unlocked: ${upgrade.name}`);
     }
   };
-
-  // Get the max amount the user can purchase
-  const getMaxBuyAmount = (assetId) => {
-    const asset = [...MEMECOINS, ...FOREX_PAIRS, ...CRYPTOCURRENCIES, ...FUTURES, ...STOCKS].find(a => a.id === assetId);
-    const price = assetPrices[assetId] !== undefined ? assetPrices[assetId] : (asset ? asset.basePrice : 1);
-    return Math.floor(money / price);
-  };
-
-  // Get the max amount the user can sell
-  const getMaxSellAmount = (assetId) => {
-    return ownedAssets[assetId] || 0;
-  };
+  //
+  // // Get the max amount the user can purchase
+  // const getMaxBuyAmount = (assetId: string) => {
+  //   const asset = [...MEMECOINS, ...FOREX_PAIRS, ...CRYPTOCURRENCIES, ...FUTURES, ...STOCKS].find(a => a.id === assetId);
+  //   const price = assetPrices[assetId] !== undefined ? assetPrices[assetId] : (asset ? asset.basePrice : 1);
+  //   return Math.floor(money / price);
+  // };
+  //
+  // // Get the max amount the user can sell
+  // const getMaxSellAmount = (assetId: string) => {
+  //   return ownedAssets[assetId] || 0;
+  // };
 
   // Calculate portfolio value
   const getPortfolioValue = () => {
@@ -1104,37 +1126,37 @@ const TradingGame = () => {
     const dataToRender = chartData.length > maxRenderPoints 
       ? chartData.slice(-maxRenderPoints) 
       : chartData;
-    
-    const processedData = dataToRender.map((point, index) => {
-      // Determine if this point is higher or lower than the previous
-      let isUp = false;
-      if (index > 0) {
-        isUp = point.price >= dataToRender[index-1].price;
-      }
-      return {
-        ...point,
-        isUp
-      };
-    });
-    
+
+    const processedData: AssetPrice[] = dataToRender.map((point, index) => ({
+      ...point,
+      isUp: index > 0 ? point.price >= dataToRender[index-1].price : true
+    }));
+
     // Custom dot component
-    const CustomizedDot = (props) => {
+    const CustomizedDot = (props: {
+      cx?: number,
+      cy?: number,
+      index?: number,
+      payload?: {
+        price: number,
+        isUp?: boolean
+      }
+    }) => {
       const { cx, cy, index, payload } = props;
       if (!payload || index === undefined || cx === undefined || cy === undefined) return null;
-      
+
       // Skip most dots for performance, show dots at regular intervals
       const dataLength = processedData.length;
       const interval = Math.max(1, Math.floor(dataLength / 8));
       
       if (index % interval !== 0 && index !== dataLength - 1) return null;
-      
       return (
-        <circle 
-          cx={cx} 
-          cy={cy} 
-          r={3} 
-          fill={payload.isUp ? '#34d399' : '#f87171'} 
-        />
+          <circle
+              cx={cx}
+              cy={cy}
+              r={3}
+              fill={payload.isUp ? '#34d399' : '#f87171'}
+          />
       );
     };
     
