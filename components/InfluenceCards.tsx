@@ -431,6 +431,10 @@ const CountryInfluenceGame = () => {
         }
     };
 
+    const toggleUpgrades = () => {
+        setShowUpgradesModal(!showUpgradesModal);
+        console.log(`Upgrades now ${showUpgradesModal? 'active' : 'inactive'}`);
+    }
     // Handle card click
     const handleCardClick = (index) => {
         setSelectedCardIndex(index);
@@ -442,6 +446,7 @@ const CountryInfluenceGame = () => {
             applyPolicy(activeCards[selectedCardIndex]);
         }
     };
+
 
     // Render the star chart for country traits
     const renderStarChart = () => {
@@ -718,7 +723,7 @@ const CountryInfluenceGame = () => {
                             </button>
                             <button
                                 className="px-4 py-2 bg-amber-600 hover:bg-amber-700 rounded-md text-white transition"
-                                onClick={setShowUpgradesModal(true)}
+                                onClick={toggleUpgrades}
                             >
                                 Upgrades
                             </button>
