@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Terminal, Code, Users, PieChart, Zap, Cpu, Briefcase } from 'lucide-react';
 import { usePathname } from 'next/navigation'
 import { CODE_SAMPLES } from '../data/code'
-
+import Level3 from './Level3';
 
 // Type definitions for better TypeScript support
 type QualityLevel = 'low' | 'medium' | 'high' | 'extreme';
@@ -1189,35 +1189,36 @@ const DernierCode = () => {
       {/* Tab selection */}
       <div className="flex mb-6 border-b border-gray-700">
         <button
-          className={`py-2 px-4 mr-2 ${activeTab === 'code' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-300'} rounded-t-lg`}
-          onClick={() => setActiveTab('code')}
+            className={`py-2 px-4 mr-2 ${activeTab === 'code' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-300'} rounded-t-lg`}
+            onClick={() => setActiveTab('code')}
         >
           <Code size={16} className="inline mr-2" />
           Code Generation <span className="text-xs opacity-75">[C]</span>
         </button>
         <button
-          className={`py-2 px-4 ${activeTab === 'management' ? 'bg-green-600 text-white' : 'bg-gray-800 text-gray-300'} rounded-t-lg flex items-center ${!managementUnlocked ? 'cursor-not-allowed opacity-50' : ''}`}
-          onClick={() => managementUnlocked && setActiveTab('management')}
-          disabled={!managementUnlocked}
-        >1
+            className={`py-2 px-4 ${activeTab === 'management' ? 'bg-green-600 text-white' : 'bg-gray-800 text-gray-300'} rounded-t-lg flex items-center ${!managementUnlocked ? 'cursor-not-allowed opacity-50' : ''}`}
+            onClick={() => managementUnlocked && setActiveTab('management')}
+            disabled={!managementUnlocked}
+        >
           <Briefcase size={16} className="inline mr-2" />
           {managementUnlocked ? (
-            <>AI Management <span className="text-xs opacity-75">[M]</span></>
+              <>AI Management <span className="text-xs opacity-75">[M]</span></>
           ) : (
-            <>??? <span className="ml-2 text-xs bg-gray-700 px-2 py-1 rounded">
+              <>??? <span className="ml-2 text-xs bg-gray-700 px-2 py-1 rounded">
               Requires AI with 'agentic' capability
             </span></>
           )}
         </button>
         <button
-          className={`py-2 px-4 ml-2 ${level3Unlocked ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-300 opacity-50'} rounded-t-lg`}
-          disabled={!level3Unlocked}
+            className={`py-2 px-4 ml-2 ${level3Unlocked ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-300 opacity-50'} rounded-t-lg`}
+            onClick={() => level3Unlocked && setActiveTab('trading')}
+            disabled={!level3Unlocked}
         >
           <Zap size={16} className="inline mr-2" />
           {level3Unlocked ? (
-            <>Level 3 <span className="text-xs bg-purple-800 px-2 py-1 rounded ml-1">Coming Soon</span></>
+              <>Trading <span className="text-xs bg-purple-800 px-2 py-1 rounded ml-1">Unlocked</span></>
           ) : (
-            <>??? <span className="ml-2 text-xs bg-gray-700 px-2 py-1 rounded">Locked</span></>
+              <>??? <span className="ml-2 text-xs bg-gray-700 px-2 py-1 rounded">Locked</span></>
           )}
         </button>
       </div>
@@ -1669,6 +1670,10 @@ const DernierCode = () => {
       </div>
     </div>
   )}
+
+    {activeTab === 'trading' && level3Unlocked && (
+      <Level3 />
+    )}
 
   {/* Upgrades Modal */}
   {showUpgradesModal && (

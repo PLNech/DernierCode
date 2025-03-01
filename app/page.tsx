@@ -8,9 +8,7 @@ export default function Home() {
     <main className="min-h-screen bg-black flex flex-col">
       <Header />
       <div className="flex-grow">
-        {/*<DernierCode />*/}
-        {/* FIXME: Integrate Level3 as DernierCode third tab!!!*/}
-        <Level3 />
+        <DernierCode />
       </div>
       <Footer />
     </main>
