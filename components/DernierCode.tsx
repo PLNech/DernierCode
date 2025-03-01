@@ -2,6 +2,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 import { Terminal, Code, Users, PieChart, Zap, Cpu, Briefcase } from 'lucide-react';
+import { usePathname } from 'next/navigation'
 import { CODE_SAMPLES } from '../data/code'
 
 
@@ -368,6 +369,8 @@ const DernierCode = () => {
   const codeLinesRef = useRef(codeLines);
   const gameContainerRef = useRef(null);
   const codeRef = useRef(null);
+  
+  const pathname = usePathname();
 
 
   const getAgentCount = (agentTypeId: string): number => {
@@ -1148,9 +1151,9 @@ const DernierCode = () => {
         <button
           className="bg-red-600 hover:bg-red-700 px-3 py-2 rounded text-white text-xs font-bold"
           onClick={() => setMoney(prev => prev + 10000000000)} // Add 10 billion
-          hidden={false} // TODO ONLY ON LOCALHOST URL
+          hidden={pathname.includes("localhost")} // TODO ONLY ON LOCALHOST URL
         >
-          DEBUG0111
+          D#BUG
         </button>
       </div>
 
