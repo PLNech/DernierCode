@@ -1213,13 +1213,13 @@ const DernierCode = () => {
           )}
         </button>
         <button
-            className={`py-2 px-4 ml-2 ${level3Unlocked ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-300 opacity-50'} rounded-t-lg`}
+            className={`py-2 px-4 ml-2 ${activeTab === 'trading' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-300 opacity-50'} rounded-t-lg`}
             onClick={() => level3Unlocked && setActiveTab('trading')}
             disabled={!level3Unlocked}
         >
           <Zap size={16} className="inline mr-2" />
           {level3Unlocked ? (
-              <>Trading <span className="text-xs bg-purple-800 px-2 py-1 rounded ml-1">Unlocked</span></>
+              <>Trading<span className="text-xs opacity-75">[M]</span> <span className="text-xs bg-purple-800 px-2 py-1 rounded ml-1">Unlocked</span></>
           ) : (
               <>??? <span className="ml-2 text-xs bg-gray-700 px-2 py-1 rounded">Locked</span></>
           )}
