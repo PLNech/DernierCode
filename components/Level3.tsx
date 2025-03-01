@@ -331,7 +331,7 @@ const TradingGame = () => {
                   <span className={`inline-block h-2 w-2 rounded-full mr-1 ${
                       agentBuyEnabled ? 'bg-green-400 animate-pulse' : 'bg-gray-500'
                   }`}></span>
-                    Buy High 🤖
+                    Buy Low 🤖
                   </button>
                 </div>
 
@@ -347,7 +347,7 @@ const TradingGame = () => {
                   <span className={`inline-block h-2 w-2 rounded-full mr-1 ${
                       agentSellEnabled ? 'bg-red-400 animate-pulse' : 'bg-gray-500'
                   }`}></span>
-                    Sell Low 🤖
+                    Sell High 🤖
                   </button>
                 </div>
               </div>
@@ -1261,7 +1261,7 @@ const TradingGame = () => {
       <button
         className="absolute bottom-12 left-12 bg-transparent hover:bg-red-900/30 text-red-500 border-2 border-red-900 text-xs font-bold py-2 px-4 rounded z-10"
         onClick={() => setMoney(prev => prev + 1000000000)} // Add 1B
-        hidden={!pathname.includes("localhost")} // ONLY ON LOCALHOST URL
+        // hidden={!pathname.includes("localhost")} // ONLY ON LOCALHOST URL
       >
         DEBUG +1B
       </button>

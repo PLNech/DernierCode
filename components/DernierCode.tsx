@@ -1,10 +1,11 @@
 // components/DernierCode.tsx
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
-import { Terminal, Code, Users, PieChart, Zap, Cpu, Briefcase } from 'lucide-react';
+import {Terminal, Code, Users, PieChart, Zap, Cpu, Briefcase, TvMinimalPlay} from 'lucide-react';
 import { usePathname } from 'next/navigation'
 import { CODE_SAMPLES } from '../data/code'
-import Level3 from './Level3';
+import TradingGame from './Level3';
+import PropagandAI from './Level4';
 
 // Type definitions for better TypeScript support
 type QualityLevel = 'low' | 'medium' | 'high' | 'extreme';
@@ -23,7 +24,6 @@ interface Model {
   quality: QualityLevel;
   capabilities: string[];
 }
-
 
 interface AgentType {
   id: string;
@@ -330,7 +330,18 @@ const syntaxHighlight = (code: string) => {
   }
 };
 
-const DernierCode = () => {
+enum LevelNames {
+  "none",
+  "code",
+  "management",
+  "trading",
+  "propaganda"
+}
+
+
+const DernierCode = (props) => {
+  const startLevel: number = props.startLevel;
+
   // Game state
   const [codeLines, setCodeLines] = useState(0);
   const [incrementFactor, setIncrementFactor] = useState(5);
@@ -340,11 +351,14 @@ const DernierCode = () => {
   const [aiCodeShare, setAiCodeShare] = useState(0);
   const [showUpgradesModal, setShowUpgradesModal] = useState(false);
   const [highlightedText, setHighlightedText] = useState('');
-  const [activeTab, setActiveTab] = useState("code"); // 'code' or 'management'
+  const [activeTab, setActiveTab] = useState(LevelNames[startLevel]); // 'code' or 'management' or 'trading' or 'propaganda'
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
-  const [managementUnlocked, setManagementUnlocked] = useState(false);
-  const [isFullyAutomated, setIsFullyAutomated] = useState(false);
-  const [level3Unlocked, setLevel3Unlocked] = useState(false);
+  const [isFullyAutomated, setIsFullyAutomated] = useState(startLevel >= 2);
+  const [level2Unlocked, setLevel2Unlocked] = useState(startLevel >= 2);
+  const [level3Unlocked, setLevel3Unlocked] = useState(startLevel >= 3);
+  const [level4Unlocked, setLevel4Unlocked] = useState(startLevel >= 4);
+  // TODO: Refactor all levels with a single levelUnlocked state, from 1 (begin on 'code') to 4 (propaganda)
+  // const [levelUnlocked, setLevelUnlocked] = useState(startLevel);
   const [observationMode, setObservationMode] = useState(false);
   const [aiSharePrecision, setAiSharePrecision] = useState(2);
   const [targetAiShare, setTargetAiShare] = useState(0);
@@ -369,8 +383,10 @@ const DernierCode = () => {
   const codeLinesRef = useRef(codeLines);
   const gameContainerRef = useRef(null);
   const codeRef = useRef(null);
-  
-  const pathname = usePathname();
+
+  // const pathname = usePathname();
+
+  console.log(`DernierCode - starting on level ${startLevel}, ${activeTab}`);
 
 
   const getAgentCount = (agentTypeId: string): number => {
@@ -542,7 +558,7 @@ const DernierCode = () => {
 
     // Check if this model unlocks management
     if (model.capabilities.includes('agentic')) {
-      setManagementUnlocked(true);
+      setLevel2Unlocked(true);
     }
   };
 
@@ -732,11 +748,10 @@ const DernierCode = () => {
   // Check if management tab should be unlocked
   useEffect(() => {
     if (activeModel &&
-      activeModel.capabilities.includes('agentic') &&
-      !managementUnlocked) {
-      setManagementUnlocked(true);
+      activeModel.capabilities.includes('agentic') && !level2Unlocked) {
+      setLevel2Unlocked(true);
       }
-  }, [activeModel, managementUnlocked]);
+  }, [activeModel, level2Unlocked]);
 
   // Check for automation when purchasing high-level agents
   useEffect(() => {
@@ -880,11 +895,15 @@ const DernierCode = () => {
                 break;
               case 'm':
               case 'M':
-                if (managementUnlocked) setActiveTab('management');
+                if (level2Unlocked) setActiveTab('management');
                 break;
               case 'T':
               case 't':
                 if (level3Unlocked) setActiveTab('trading');
+                break;
+              case 'P':
+              case 'p':
+                if (level4Unlocked) setActiveTab('propaganda');
               case '?':
                 setShowShortcutHelp(prev => !prev);
                 break;
@@ -955,7 +974,7 @@ const DernierCode = () => {
     showUpgradesModal,
     incomingTasks,
     ownedAgents,
-    managementUnlocked,
+    level2Unlocked,
     money,
     activeModel,
     assignTask,
@@ -1153,9 +1172,9 @@ const DernierCode = () => {
         </div>
         <button
           className="bg-red-600 hover:bg-red-700 px-3 py-2 rounded text-white text-xs font-bold"
-          onClick={() => setMoney(prev => prev + 10000000000)} // Add 10 billion
-          hidden={!pathname.includes("localhost")} // ONLY ON LOCALHOST URL
-          data-name={"DEBUG"}
+          onClick={() => setMoney(prev => prev + 1000000000000)} // Add 10 billion
+          // hidden={!pathname.includes("localhost")} // ONLY ON LOCALHOST URL
+          data-name={"DEBUG1"}
         >
           D#BUG
         </button>
@@ -1199,29 +1218,50 @@ const DernierCode = () => {
           Code Generation <span className="text-xs opacity-75">[C]</span>
         </button>
         <button
-            className={`py-2 px-4 ${activeTab === 'management' ? 'bg-green-600 text-white' : 'bg-gray-800 text-gray-300'} rounded-t-lg flex items-center ${!managementUnlocked ? 'cursor-not-allowed opacity-50' : ''}`}
-            onClick={() => managementUnlocked && setActiveTab('management')}
-            disabled={!managementUnlocked}
+            className={`py-2 px-4 ${activeTab === 'management' ? 'bg-green-600 text-white' : 'bg-gray-800 text-gray-300'} rounded-t-lg flex items-center ${!level2Unlocked ? 'cursor-not-allowed opacity-50' : ''}`}
+            onClick={() => level2Unlocked && setActiveTab('management')}
+            disabled={!level2Unlocked}
         >
           <Briefcase size={16} className="inline mr-2" />
-          {managementUnlocked ? (
-              <>AI Management <span className="text-xs opacity-75">[M]</span></>
+          {level2Unlocked ? (
+              <>AI Management <span className="text-xs opacity-75 px-1">[M]</span></>
           ) : (
               <>??? <span className="ml-2 text-xs bg-gray-700 px-2 py-1 rounded">
               Requires AI with 'agentic' capability
             </span></>
           )}
         </button>
+
         <button
-            className={`py-2 px-4 ml-2 ${activeTab === 'trading' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-300 opacity-50'} rounded-t-lg`}
+            className={`py-2 px-4 ${activeTab === 'trading' ? 'bg-purple-600 text-white' : 'bg-gray-800 text-gray-300'} rounded-t-lg flex items-center ${!level3Unlocked ? 'cursor-not-allowed opacity-50' : ''}`}
             onClick={() => level3Unlocked && setActiveTab('trading')}
             disabled={!level3Unlocked}
         >
           <Zap size={16} className="inline mr-2" />
           {level3Unlocked ? (
-              <>Trading<span className="text-xs opacity-75">[M]</span> <span className="text-xs bg-purple-800 px-2 py-1 rounded ml-1">Unlocked</span></>
+              <>Asset Trading <span className="text-xs opacity-75 px-1">[T]</span></>
           ) : (
-              <>??? <span className="ml-2 text-xs bg-gray-700 px-2 py-1 rounded">Locked</span></>
+              <>???
+                {level2Unlocked && (
+                    <span className="ml-2 text-xs bg-gray-700 px-2 py-1 rounded">Requires $1B entry ticket</span>
+                  )}
+              </>
+          )}
+        </button>
+        <button
+            className={`py-2 px-4 ${activeTab === 'propaganda' ? 'bg-amber-600 text-white' : 'bg-gray-800 text-gray-300'} rounded-t-lg flex items-center ${!level4Unlocked ? 'cursor-not-allowed opacity-50' : ''}`}
+            onClick={() => level4Unlocked && setActiveTab('trading')}
+            disabled={!level4Unlocked}
+        >
+          <TvMinimalPlay size={16} className="inline mr-2" />
+          {level4Unlocked ? (
+              <>Propagand<b>AI </b> <span className="text-xs opacity-75 px-1">[P]</span></>
+          ) : (
+              <>???
+                {level3Unlocked && (
+                    <span className="ml-2 text-xs bg-gray-700 px-2 py-1 rounded">Requires a DataCenter</span>
+                )}
+              </>
           )}
         </button>
       </div>
@@ -1453,8 +1493,8 @@ const DernierCode = () => {
             ).map(agentType => (
               <button
                 key={agentType.id}
-                onClick={() => !isFullyAutomated && purchaseAgent(agentType)}
-                disabled={money < agentType.cost || isFullyAutomated}
+                onClick={() =>  purchaseAgent(agentType)}
+                disabled={money < agentType.cost}
                 className={`py-2 px-3 rounded text-left text-sm ${
                   money >= agentType.cost && !isFullyAutomated
                   ? 'bg-blue-600 hover:bg-blue-700'
@@ -1675,9 +1715,12 @@ const DernierCode = () => {
   )}
 
     {activeTab === 'trading' && level3Unlocked && (
-      <Level3 />
+      <TradingGame />
     )}
 
+    {activeTab === 'propaganda' && level4Unlocked && (
+        <PropagandAI />
+    )}
   {/* Upgrades Modal */}
   {showUpgradesModal && (
     <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4">
