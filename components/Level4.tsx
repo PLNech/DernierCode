@@ -11,9 +11,11 @@ import {
     ChevronUp,
     MessageCircle,
     Lock,
+    X
 } from 'lucide-react';
 import {Country, Log, Operation} from "@/types/lvl4";
 import {ACTIONS, CONTINENTS, INITIAL_COUNTRIES, UPGRADES} from "@/data/lvl4";
+import CountryInfluenceGame from './InfluenceCards';
 
 // Define TypeScript interfaces for the game state
 // Actions available based on upgrades
@@ -34,6 +36,56 @@ const PropagandAI = () => {
 
     const [showUpgrades, setShowUpgrades] = useState(false);
     const [zoomedContinent, setZoomedContinent] = useState<string | null>(null);
+    const [showCountryInfluenceGame, setShowCountryInfluenceGame] = useState(false);
+    const [influenceGameCountry, setInfluenceGameCountry] = useState<Country | null>(null);
+    const [pendingAction, setPendingAction] = useState<{
+        actionId: string,
+        targetCountryId: string,
+        action: any,
+        targetCountry: Country
+    } | null>(null);
+
+    const handleInfluenceGameComplete = (success: boolean) => {
+        setShowCountryInfluenceGame(false);
+
+        if (success && pendingAction) {
+            // Continue with the original operation logic using pendingAction details
+            const { actionId, targetCountryId, action, targetCountry } = pendingAction;
+
+            // Create a new operation
+            const newOperation: Operation = {
+                id: `${actionId}-${targetCountryId}-${gameState.day}`,
+                actionId,
+                countryId: targetCountryId,
+                daysLeft: action.cooldown,
+                startDay: gameState.day
+            };
+
+            // Apply immediate effects to country
+            const updatedCountries = {...gameState.countries};
+            const countryStats = {...updatedCountries[targetCountryId].stats};
+
+            // Rest of your existing operation creation logic...
+
+            // Add log
+            addLog(`Successfully influenced ${targetCountry.name} and started operation "${action.name}".`, 'success');
+
+            // Update game state
+            setGameState({
+                ...gameState,
+                influence: gameState.influence - action.cost,
+                countries: updatedCountries,
+                activeOperations: [...gameState.activeOperations, newOperation]
+            });
+
+        } else if (!success) {
+            // Handle failure
+            addLog(`Failed to influence ${pendingAction?.targetCountry.name}. Try a different approach.`, 'error');
+        }
+
+        // Clear pending action
+        setPendingAction(null);
+    }
 
     // Game tick - updates every 5 seconds
     useEffect(() => {
@@ -128,6 +180,20 @@ const PropagandAI = () => {
             addLog(`Cannot target ${targetCountry.name}. Target must be controlled or adjacent to a controlled country.`, 'error');
             return;
         }
+
+        setShowCountryInfluenceGame(true);
+        setInfluenceGameCountry(gameState.countries[targetCountryId]);
+
+        // Store action details for after game completion
+        setPendingAction({
+            actionId,
+            targetCountryId,
+            action,
+            targetCountry
+        });
+
+        // Return early - actual action will be performed after winning the minigame
+        return;
 
         // Create a new operation
         const newOperation: Operation = {
@@ -410,7 +476,11 @@ const PropagandAI = () => {
                             // Determine hexagon color based on control status
                             let fillColor = country.controlled
                                 ? `rgba(16, 185, 129, ${Math.max(0.3, influencePercent / 100)})`
-                                : `rgba(30, 41, 59, 0.7)`;
+                                : country.influenceLevel > 50
+                                    ? `rgba(99, 102, 241, ${Math.max(0.3, influencePercent / 100)})`
+                                    : country.influenceLevel > 25
+                                        ? `rgba(139, 92, 246, ${Math.max(0.3, influencePercent / 100)})`
+                                        : `rgba(30, 41, 59, 0.7)`;
 
                             // For countries that are being targeted but not controlled
                             if (!country.controlled && gameState.activeOperations.some(op => op.countryId === country.id)) {
@@ -476,6 +546,8 @@ const PropagandAI = () => {
                             const action = gameState.actions[operation.actionId];
 
                             if (!country || !country.renderPosition) return null;
+
+                            const hexSize = getScaledHexSize(country.population);
 
                             // Show pulses or beams emanating from controlled countries to the target
                             return (
@@ -954,8 +1026,43 @@ const PropagandAI = () => {
                     </div>
                 </div>
             )}
+            {showCountryInfluenceGame && influenceGameCountry && (
+                <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center">
+                    <div className="relative w-4/5 h-4/5 bg-gray-900 rounded-lg overflow-hidden">
+                        <div className="absolute top-2 right-2">
+                            <button
+                                onClick={() => {
+                                    setShowCountryInfluenceGame(false);
+                                    setPendingAction(null);
+                                }}
+                                className="bg-red-600 hover:bg-red-700 text-white p-2 rounded"
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
+                        <div className="p-4 h-full">
+                            <CountryInfluenceGame
+                                country={{
+                                    id: influenceGameCountry.id,
+                                    name: influenceGameCountry.name,
+                                    traits: {
+                                        politics: influenceGameCountry.stats.politics,
+                                        media: influenceGameCountry.stats.media,
+                                        control: influenceGameCountry.stats.control,
+                                        trust: influenceGameCountry.stats.trust,
+                                        diplomacy: influenceGameCountry.stats.diplomacy
+                                    },
+                                    controlled: influenceGameCountry.controlled,
+                                    influenceLevel: influenceGameCountry.influenceLevel
+                                }}
+                                onComplete={handleInfluenceGameComplete}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
-    );
+);
 };
 
 export default PropagandAI;

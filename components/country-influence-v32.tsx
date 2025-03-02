@@ -282,13 +282,9 @@ const INITIAL_UPGRADES = [
     }
 ];
 
-// Update component definition to accept props
-const CountryInfluenceGame = ({
-                                  country = initialCountry,
-                                  onComplete = (success: boolean) => {}
-                              }) => {
+const CountryInfluenceGame = () => {
     // Game state
-    // const [country, setCountry] = useState(initialCountry); FIXME Keep or not?
+    const [country, setCountry] = useState(initialCountry);
     const [cardCount, setCardCount] = useState(2);
     const [upgrades, setUpgrades] = useState(INITIAL_UPGRADES);
     const [activeCards, setActiveCards] = useState([]);
@@ -310,19 +306,19 @@ const CountryInfluenceGame = ({
     const drawCards = () => {
         // Get the current card draw count (base 2 + upgrades)
         const currentDrawCount = 2 + getUpgradeLevel('draw-more');
-
+        
         const shuffled = [...POLICY_CARDS].sort(() => 0.5 - Math.random());
         setActiveCards(shuffled.slice(0, currentDrawCount));
-
+        
         // Randomly pre-select one card (1/N% chance for each)
         setSelectedCardIndex(Math.floor(Math.random() * currentDrawCount));
-
+        
         // Set timer based on the reduced-timer upgrade (base 10 - 2 seconds per level, minimum 4)
         const timerReduction = getUpgradeLevel('reduced-timer') * 2;
         const newTimer = Math.max(4, 10 - timerReduction);
         setTimeRemaining(newTimer);
     };
-
+    
     // Get the level of a specific upgrade
     const getUpgradeLevel = (upgradeId) => {
         const upgrade = upgrades.find(u => u.id === upgradeId);
@@ -332,9 +328,9 @@ const CountryInfluenceGame = ({
     const purchaseUpgrade = (upgradeId) => {
         const upgradeIndex = upgrades.findIndex(u => u.id === upgradeId);
         if (upgradeIndex === -1) return;
-
+        
         const upgrade = upgrades[upgradeIndex];
-
+        
         // Check if already at max level
         if (upgrade.level >= upgrade.maxLevel) {
             return;
@@ -396,10 +392,10 @@ const CountryInfluenceGame = ({
     // Apply policy effect to country
     const applyPolicy = (card) => {
         if (!card) return;
-
+        
         setCountry(prevCountry => {
             const newTraits = { ...prevCountry.traits };
-
+            
             // Get policy boost level effect (each level gives +15% boost)
             const boostMultiplier = 1 + (getUpgradeLevel('policy-boost') * 0.15);
 
@@ -484,26 +480,10 @@ const CountryInfluenceGame = ({
         return () => clearTimeout(timer);
     }, [timeRemaining, selectedCardIndex, activeCards, isPaused]);
 
-
-    // hook to handle game victory condition
-    useEffect(() => {
-        if (country.influenceLevel >= 75) {
-            // Player has won enough influence - call completion with success
-            setTimeout(() => {
-                onComplete(true);
-            }, 2000);
-        }
-    }, [country.influenceLevel, onComplete]);
-
-    // cancel button
-    const cancelGame = () => {
-        onComplete(false);
-    };
-
     // Toggle card selection
     const toggleCardSelection = () => {
         if (activeCards.length > 1) {
-            setSelectedCardIndex(prev =>
+            setSelectedCardIndex(prev => 
                 prev === null ? 0 : (prev + 1) % activeCards.length
             );
         }
@@ -635,438 +615,7 @@ const CountryInfluenceGame = ({
                         );
                     })}
                 </svg>
-
-                {/* Upgrades Modal */}
-                {showUpgradesModal && (
-                    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-                        <div className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-                            <div className="flex justify-between items-center mb-4">
-                                <h2 className="text-xl font-bold text-cyan-400">Upgrades</h2>
-                                <button
-                                    className="text-gray-400 hover:text-white"
-                                    onClick={() => setShowUpgradesModal(false)}
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-
-                            <div className="mb-4 p-3 bg-gray-700 rounded-lg">
-                                <h3 className="text-sm font-bold text-gray-300 mb-2">Country Resources</h3>
-                                <div className="grid grid-cols-5 gap-2">
-                                    {Object.entries(country.traits).map(([trait, value]) => (
-                                        <div key={trait} className="text-center">
-                                            <div className={`text-sm font-bold mb-1 ${TRAITS_CONFIG[trait].color}`}>
-                                                {TRAITS_CONFIG[trait].shortcode}
-                                            </div>
-                                            <div className="text-lg font-bold">{value}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="space-y-4">
-                                {upgrades.map((upgrade) => {
-                                    // Calculate cost for next level
-                                    const nextLevel = upgrade.level + 1;
-                                    const isMaxLevel = upgrade.level >= upgrade.maxLevel;
-                                    const costPerTrait = upgrade.cost(upgrade.level);
-                                    const canAfford = !isMaxLevel && Object.values(country.traits).every(v => v >= costPerTrait);
-                                    const bgColor = isMaxLevel ? 'bg-green-900' : (canAfford ? 'bg-blue-800' : 'bg-gray-700');
-
-                                    return (
-                                        <div
-                                            key={upgrade.id}
-                                            className={`${bgColor} rounded-lg p-4 transition-colors duration-200`}
-                                        >
-                                            <div className="flex justify-between items-center mb-2">
-                                                <h3 className="font-bold text-lg">
-                                                    {upgrade.name} <span className="text-sm">Level {upgrade.level}/{upgrade.maxLevel}</span>
-                                                </h3>
-                                                {!isMaxLevel && (
-                                                    <div className="text-sm bg-gray-900 px-2 py-1 rounded">
-                                                        Cost: {costPerTrait} each trait
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            <p className="text-sm text-gray-300 mb-3">{upgrade.description}</p>
-
-                                            <div className="flex items-center justify-between">
-                                                <div className="text-xs text-gray-400">
-                                                    {upgrade.effect} ({upgrade.level} → {nextLevel > upgrade.maxLevel ? upgrade.maxLevel : nextLevel})
-                                                </div>
-
-                                                <button
-                                                    className={`px-3 py-1 rounded text-sm ${
-                                                        isMaxLevel
-                                                            ? 'bg-green-700 text-green-200 cursor-not-allowed'
-                                                            : canAfford
-                                                                ? 'bg-blue-600 hover:bg-blue-500 text-white'
-                                                                : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                                                    }`}
-                                                    onClick={() => !isMaxLevel && canAfford && purchaseUpgrade(upgrade.id)}
-                                                    disabled={isMaxLevel || !canAfford}
-                                                >
-                                                    {isMaxLevel ? 'Maxed Out' : 'Upgrade'}
-                                                </button>
-                                            </div>
-
-                                            {/* Progress bar */}
-                                            <div className="mt-2 bg-gray-900 h-2 rounded-full">
-                                                <div
-                                                    className="bg-cyan-600 h-2 rounded-full"
-                                                    style={{ width: `${(upgrade.level / upgrade.maxLevel) * 100}%` }}
-                                                ></div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </div>
-        );
-    };
-
-    return (
-        <div className="w-full bg-gray-900 text-gray-200 flex flex-col rounded-lg border border-gray-800 overflow-hidden">
-            {/* Header */}
-            <div className="p-3 bg-gray-800 border-b border-gray-700 flex justify-between items-center">
-                <div>
-                    <h2 className="text-lg font-bold text-cyan-400">{country.name} Influence Campaign</h2>
-                    <div className="text-sm text-gray-400">Round {round}</div>
-                </div>
-                <div className="flex items-center space-x-3">
-                    <div className="flex flex-col items-end">
-                        <span className="text-sm text-gray-400">Influence Level:</span>
-                        <span className={`font-bold ${country.controlled ? 'text-green-400' : 'text-gray-300'}`}>
-            {country.influenceLevel.toFixed(1)}%
-          </span>
-                    </div>
-                    <div className={`px-2 py-1 rounded text-xs ${
-                        country.controlled ? 'bg-green-900 text-green-300' : 'bg-gray-700 text-gray-300'
-                    }`}>
-                        {country.controlled ? 'CONTROLLED' : 'TARGET'}
-                    </div>
-                </div>
-            </div>
-
-            {/* News Reel */}
-            <style>{newsReelStyles}</style>
-            <div className="bg-black text-yellow-400 border-b border-yellow-900 px-3 py-2 flex items-center">
-                <div className="text-xs font-bold bg-yellow-600 text-black px-2 py-1 rounded mr-3 shrink-0">
-                    BREAKING NEWS
-                </div>
-                <div className="news-ticker flex-1">
-                    <div className="news-ticker-content" dangerouslySetInnerHTML={{
-                        __html: newsReel.length > 0
-                            ? newsReel[currentNewsIndex].text.replace(/\*([^*]+)\*/g, '<em class="text-white">$1</em>')
-                            : ''
-                    }} />
-                </div>
-            </div>
-
-            <div className="flex flex-row w-full">
-                {/* Left panel - Policy Cards and Actions */}
-                <div className="w-3/5 p-4 border-r border-gray-700">
-                    {/* Timer bar */}
-                    <div className="mb-3">
-                        <div className="flex justify-between text-sm text-gray-400 mb-1">
-                            <span>Next Policy in:</span>
-                            <span>
-              {timeRemaining}s
-                                {getUpgradeLevel('reduced-timer') > 0 && (
-                                    <span className="text-xs text-green-500 ml-1">
-                  (Faster Decisions Lv.{getUpgradeLevel('reduced-timer')})
-                </span>
-                                )}
-            </span>
-                        </div>
-                        <div className="w-full bg-gray-700 rounded-full h-2">
-                            <div
-                                className="bg-cyan-500 h-2 rounded-full transition-all duration-1000 ease-linear"
-                                style={{ width: `${(timeRemaining / 10) * 100}%` }}
-                            ></div>
-                        </div>
-                    </div>
-
-                    {/* Policy cards */}
-                    <h3 className="text-md font-semibold text-cyan-300 mb-2">Available Policies</h3>
-                    <div className="flex flex-row justify-center items-center space-x-4 mb-4">
-                        {activeCards.map((card, index) => (
-                            <div
-                                key={card.id}
-                                className={`w-56 h-80 p-3 rounded-lg border-2 transition-all cursor-pointer flex flex-col
-                ${card.style} 
-                ${selectedCardIndex === index ? 'ring-2 ring-yellow-400 scale-105' : 'opacity-80 scale-100'}`}
-                                onClick={() => handleCardClick(index)}
-                                style={{ aspectRatio: '2/3' }}
-                            >
-                                <div className="font-bold text-lg mb-2 text-center border-b border-gray-600 pb-2">{card.name}</div>
-
-                                <div className="flex-grow flex flex-col justify-between">
-                                    <p className="text-sm text-gray-300 mb-3 italic">{card.description}</p>
-
-                                    <div className="space-y-3 mb-3">
-                                        <div className="flex justify-between items-center p-2 bg-black bg-opacity-30 rounded">
-                    <span className={`text-sm ${TRAITS_CONFIG[card.bonusTrait].color}`}>
-                      {TRAITS_CONFIG[card.bonusTrait].name}
-                    </span>
-                                            <div>
-                                                <span className="text-green-400 font-bold text-lg">+{card.bonusValue}</span>
-                                                {getUpgradeLevel('policy-boost') > 0 && (
-                                                    <span className="text-xs text-green-300 ml-1">
-                          (+{Math.round(card.bonusValue * getUpgradeLevel('policy-boost') * 0.15)})
-                        </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div className="flex justify-between items-center p-2 bg-black bg-opacity-30 rounded">
-                    <span className={`text-sm ${TRAITS_CONFIG[card.malusTrait].color}`}>
-                      {TRAITS_CONFIG[card.malusTrait].name}
-                    </span>
-                                            <span className="text-red-400 font-bold text-lg">-{card.malusValue}</span>
-                                        </div>
-                                    </div>
-
-                                    {index === selectedCardIndex && !isPaused && (
-                                        <div className="mb-2 py-1 text-center text-xs text-yellow-400 bg-yellow-900 bg-opacity-30 rounded animate-pulse">
-                                            Selected
-                                        </div>
-                                    )}
-
-                                    {/* Card bottom decoration */}
-                                    <div className="border-t border-gray-600 pt-2 text-xs text-gray-400 text-center">
-                                        Policy #{card.id.substring(0, 4)}-{round}
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Action buttons */}
-                    <div className="flex justify-center gap-8 m-4">
-                        <button
-                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-white transition"
-                            onClick={toggleCardSelection}
-                        >
-                            Toggle Selection
-                        </button>
-                        <button
-                            className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-md text-white transition"
-                            onClick={confirmSelection}
-                        >
-                            Confirm Policy
-                        </button>
-                        <button
-                            onClick={() => setShowUpgradesModal(true)}
-                            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 rounded-md text-sm mr-2"
-                        >
-                            Upgrades
-                        </button>
-                    </div>
-
-                    {/* Event log */}
-                    <div className="mt-4">
-                        <h3 className="text-md font-semibold text-cyan-300 mb-2">Influence Campaign Log</h3>
-                        <div className="bg-gray-800 rounded-lg p-2 max-h-32 overflow-y-auto text-sm border border-gray-700">
-                            {influenceEvents.length > 0 ? (
-                                <div className="space-y-1">
-                                    {influenceEvents.map((event, i) => (
-                                        <div key={i} className="text-xs text-gray-300 border-b border-gray-700 pb-1 last:border-0">
-                                            {event}
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="text-xs text-gray-500 italic">
-                                    No events yet. Apply your first policy.
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Right panel - Country Information and Stats */}
-                <div className="w-2/5 p-4 bg-gray-800">
-                    <h3 className="text-md font-semibold text-cyan-300 mb-3">Country Intelligence</h3>
-
-                    <div className="mb-4 bg-gray-900 rounded-lg p-3 border border-gray-700">
-                        <div className="flex justify-between items-center mb-3">
-                            <h4 className="font-bold text-lg">{country.name}</h4>
-                            <div className={`px-2 py-1 rounded text-xs ${
-                                country.controlled ? 'bg-green-900 text-green-300' : 'bg-gray-700 text-gray-300'
-                            }`}>
-                                {country.controlled ? 'CONTROLLED' : 'TARGET'}
-                            </div>
-                        </div>
-
-                        <div className="mb-3">
-                            <div className="text-sm text-gray-400 mb-1">Influence Progress:</div>
-                            <div className="flex items-center">
-                                <div className="flex-grow h-3 bg-gray-700 rounded-full overflow-hidden">
-                                    <div
-                                        className={`h-full rounded-full ${country.controlled ? 'bg-green-500' : 'bg-blue-500'}`}
-                                        style={{ width: `${country.influenceLevel}%` }}
-                                    ></div>
-                                </div>
-                                <span className="ml-2 text-lg font-bold">{country.influenceLevel.toFixed(1)}%</span>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-2 mb-3">
-                            <div className="bg-gray-800 p-2 rounded text-center">
-                                <div className="text-xs text-gray-400">Population</div>
-                                <div className="font-bold">12.4M</div>
-                            </div>
-                            <div className="bg-gray-800 p-2 rounded text-center">
-                                <div className="text-xs text-gray-400">Region</div>
-                                <div className="font-bold">Europe</div>
-                            </div>
-                            <div className="bg-gray-800 p-2 rounded text-center">
-                                <div className="text-xs text-gray-400">Stability</div>
-                                <div className="font-bold text-yellow-400">Medium</div>
-                            </div>
-                        </div>
-
-                        <div className="text-xs text-gray-400 mb-1">Status Report:</div>
-                        <div className="text-sm">
-                            {country.controlled
-                                ? "Country under your influence. Continue to maintain control."
-                                : country.influenceLevel > 50
-                                    ? "Significant influence established. Ready for takeover operations."
-                                    : "Initial influence operations underway. Increase media and political control."}
-                        </div>
-                    </div>
-
-                    {/* Star Chart */}
-                    <div>
-                        <h3 className="text-md font-semibold text-cyan-300 mb-2">Influence Metrics</h3>
-
-                        <div className="relative mb-4">
-                            <svg width="100%" height="200" viewBox="0 0 200 200" className="mx-auto">
-                                {/* Background circles */}
-                                <circle cx={100} cy={100} r={20} fill="none" stroke="#1e293b" strokeWidth="1" />
-                                <circle cx={100} cy={100} r={40} fill="none" stroke="#1e293b" strokeWidth="1" />
-                                <circle cx={100} cy={100} r={60} fill="none" stroke="#1e293b" strokeWidth="1" />
-                                <circle cx={100} cy={100} r={80} fill="none" stroke="#1e293b" strokeWidth="1" />
-
-                                {/* Axis lines */}
-                                {TRAITS.map((trait, index) => {
-                                    const angle = (index / TRAITS.length) * 2 * Math.PI - Math.PI / 2;
-                                    return (
-                                        <line
-                                            key={`axis-${trait}`}
-                                            x1={100}
-                                            y1={100}
-                                            x2={100 + 80 * Math.cos(angle)}
-                                            y2={100 + 80 * Math.sin(angle)}
-                                            stroke="#1e293b"
-                                            strokeWidth="1"
-                                        />
-                                    );
-                                })}
-
-                                {/* Trait polygon */}
-                                <polygon
-                                    points={TRAITS.map((trait, index) => {
-                                        const angle = (index / TRAITS.length) * 2 * Math.PI - Math.PI / 2;
-                                        const value = country.traits[trait] / 100;
-                                        return `${100 + 80 * value * Math.cos(angle)},${100 + 80 * value * Math.sin(angle)}`;
-                                    }).join(' ')}
-                                    fill="rgba(99, 102, 241, 0.3)"
-                                    stroke="#6366f1"
-                                    strokeWidth="2"
-                                />
-
-                                {/* Trait points */}
-                                {TRAITS.map((trait, index) => {
-                                    const angle = (index / TRAITS.length) * 2 * Math.PI - Math.PI / 2;
-                                    const value = country.traits[trait] / 100;
-                                    return (
-                                        <circle
-                                            key={`point-${trait}`}
-                                            cx={100 + 80 * value * Math.cos(angle)}
-                                            cy={100 + 80 * value * Math.sin(angle)}
-                                            r="4"
-                                            fill="#6366f1"
-                                        />
-                                    );
-                                })}
-
-                                {/* Trait labels */}
-                                {TRAITS.map((trait, index) => {
-                                    const angle = (index / TRAITS.length) * 2 * Math.PI - Math.PI / 2;
-                                    const labelX = 100 + 110 * Math.cos(angle);
-                                    const labelY = 100 + 110 * Math.sin(angle);
-
-                                    return (
-                                        <g key={`label-${trait}`}>
-                                            <rect
-                                                x={labelX - 20}
-                                                y={labelY - 10}
-                                                width="40"
-                                                height="20"
-                                                rx="4"
-                                                ry="4"
-                                                fill={trait === 'politics' ? '#4c1d95' :
-                                                    trait === 'media' ? '#1e40af' :
-                                                        trait === 'control' ? '#991b1b' :
-                                                            trait === 'trust' ? '#065f46' :
-                                                                '#92400e'}
-                                                stroke={TRAITS_CONFIG[trait].color.replace('text-', '')}
-                                                strokeWidth="1"
-                                            />
-                                            <text
-                                                x={labelX}
-                                                y={labelY}
-                                                textAnchor="middle"
-                                                alignmentBaseline="central"
-                                                fill="white"
-                                                fontWeight="bold"
-                                                fontSize="10"
-                                            >
-                                                {TRAITS_CONFIG[trait].shortcode}
-                                            </text>
-                                        </g>
-                                    );
-                                })}
-                            </svg>
-                        </div>
-
-                        {/* Detailed Metrics Table */}
-                        <div className="bg-gray-900 rounded-lg p-3 border border-gray-700">
-                            <h4 className="text-sm font-semibold text-gray-300 mb-2">Detailed Metrics</h4>
-                            <div className="space-y-2">
-                                {TRAITS.map(trait => (
-                                    <div key={trait} className="flex items-center">
-                                        <div className={`w-20 text-sm ${TRAITS_CONFIG[trait].color}`}>{TRAITS_CONFIG[trait].name}</div>
-                                        <div className="flex-grow mx-2">
-                                            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                                                <div
-                                                    className={`h-full ${
-                                                        trait === 'politics' ? 'bg-purple-500' :
-                                                            trait === 'media' ? 'bg-blue-500' :
-                                                                trait === 'control' ? 'bg-red-500' :
-                                                                    trait === 'trust' ? 'bg-green-500' :
-                                                                        'bg-yellow-500'
-                                                    }`}
-                                                    style={{ width: `${country.traits[trait]}%` }}
-                                                ></div>
-                                            </div>
-                                        </div>
-                                        <div className="w-10 text-right font-bold">{country.traits[trait]}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
+            
             {/* Upgrades Modal */}
             {showUpgradesModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
@@ -1083,7 +632,6 @@ const CountryInfluenceGame = ({
                             </button>
                         </div>
 
-                        {/* Upgrades content */}
                         <div className="mb-4 p-3 bg-gray-700 rounded-lg">
                             <h3 className="text-sm font-bold text-gray-300 mb-2">Country Resources</h3>
                             <div className="grid grid-cols-5 gap-2">
@@ -1160,7 +708,208 @@ const CountryInfluenceGame = ({
                 </div>
             )}
         </div>
-    );
-};
+        );
+    };
 
-export default CountryInfluenceGame;
+    return (
+        <div className="w-full bg-gray-900 text-gray-200 flex flex-col rounded-lg border border-gray-800 overflow-hidden">
+            {/* Header */}
+            <div className="p-3 bg-gray-800 border-b border-gray-700 flex justify-between items-center">
+                <div>
+                    <h2 className="text-lg font-bold text-cyan-400">{country.name} Influence Campaign</h2>
+                    <div className="text-sm text-gray-400">Round {round}</div>
+                </div>
+                <div className="flex items-center space-x-3">
+                    <div className="flex flex-col items-end">
+                        <span className="text-sm text-gray-400">Influence Level:</span>
+                        <span className={`font-bold ${country.controlled ? 'text-green-400' : 'text-gray-300'}`}>
+                            {country.influenceLevel.toFixed(1)}%
+                        </span>
+                    </div>
+                    <div className={`px-2 py-1 rounded text-xs ${
+                        country.controlled ? 'bg-green-900 text-green-300' : 'bg-gray-700 text-gray-300'
+                    }`}>
+                        {country.controlled ? 'CONTROLLED' : 'TARGET'}
+                    </div>
+                </div>
+            </div>
+
+            {/* News Reel */}
+            <style>{newsReelStyles}</style>
+            <div className="bg-black text-yellow-400 border-b border-yellow-900 px-3 py-2 flex items-center">
+                <div className="text-xs font-bold bg-yellow-600 text-black px-2 py-1 rounded mr-3 shrink-0">
+                    BREAKING NEWS
+                </div>
+                <div className="news-ticker flex-1">
+                    <div className="news-ticker-content" dangerouslySetInnerHTML={{
+                        __html: newsReel.length > 0
+                            ? newsReel[currentNewsIndex].text.replace(/\*([^*]+)\*/g, '<em class="text-white">$1</em>')
+                            : ''
+                    }} />
+                </div>
+            </div>
+
+            <div className="flex flex-col md:flex-row">
+                {/* Left panel - Country traits */}
+                <div className="w-full md:w-2/3 p-4">
+                    <div className="flex flex-col h-full">
+                        {/* Timer bar */}
+                        <div className="mb-3">
+                            <div className="flex justify-between text-sm text-gray-400 mb-1">
+                                <span>Next Policy in:</span>
+                                <span>
+                                    {timeRemaining}s
+                                    {getUpgradeLevel('reduced-timer') > 0 && (
+                                        <span className="text-xs text-green-500 ml-1">
+                                            (Faster Decisions Lv.{getUpgradeLevel('reduced-timer')})
+                                        </span>
+                                    )}
+                                </span>
+                            </div>
+                            <div className="w-full bg-gray-700 rounded-full h-2">
+                                <div
+                                    className="bg-cyan-500 h-2 rounded-full transition-all duration-1000 ease-linear"
+                                    style={{ width: `${(timeRemaining / 10) * 100}%` }}
+                                ></div>
+                            </div>
+                        </div>
+
+                        {/* Policy cards */}
+                        <div className="flex flex-row justify-center items-center space-x-6 mb-4">
+                            {activeCards.map((card, index) => (
+                                <div
+                                    key={card.id}
+                                    className={`w-64 h-96 p-4 rounded-lg border-2 transition-all cursor-pointer flex flex-col
+                    ${card.style} 
+                    ${selectedCardIndex === index ? 'ring-2 ring-yellow-400 scale-105' : 'opacity-80 scale-100'}`}
+                                    onClick={() => handleCardClick(index)}
+                                    style={{ aspectRatio: '2/3' }}
+                                >
+                                    <div className="font-bold text-lg mb-2 text-center border-b border-gray-600 pb-2">{card.name}</div>
+
+                                    <div className="flex-grow flex flex-col justify-between">
+                                        <p className="text-sm text-gray-300 mb-4 italic">{card.description}</p>
+
+                                        <div className="space-y-3 mb-4">
+                                            <div className="flex justify-between items-center p-2 bg-black bg-opacity-30 rounded">
+                        <span className={`text-sm ${TRAITS_CONFIG[card.bonusTrait].color}`}>
+                          {TRAITS_CONFIG[card.bonusTrait].name}
+                        </span>
+                                                <div>
+                                                    <span className="text-green-400 font-bold text-lg">+{card.bonusValue}</span>
+                                                    {getUpgradeLevel('policy-boost') > 0 && (
+                                                        <span className="text-xs text-green-300 ml-1">
+                                                            (+{Math.round(card.bonusValue * getUpgradeLevel('policy-boost') * 0.15)})
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex justify-between items-center p-2 bg-black bg-opacity-30 rounded">
+                        <span className={`text-sm ${TRAITS_CONFIG[card.malusTrait].color}`}>
+                          {TRAITS_CONFIG[card.malusTrait].name}
+                        </span>
+                                                <span className="text-red-400 font-bold text-lg">-{card.malusValue}</span>
+                                            </div>
+                                        </div>
+
+                                        {index === selectedCardIndex && !isPaused && (
+                                            <div className="mb-2 py-2 text-center text-xs text-yellow-400 bg-yellow-900 bg-opacity-30 rounded animate-pulse">
+                                                Selected
+                                            </div>
+                                        )}
+
+                                        {/* Card bottom decoration */}
+                                        <div className="border-t border-gray-600 pt-2 text-xs text-gray-400 text-center">
+                                            Policy #{card.id.substring(0, 4)}-{round}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="flex justify-center gap-3 mb-4">
+                            <button
+                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-white transition"
+                                onClick={toggleCardSelection}
+                            >
+                                Toggle Selection
+                            </button>
+                            <button
+                                className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-md text-white transition"
+                                onClick={confirmSelection}
+                            >
+                                Confirm Policy
+                            </button>
+                        </div>
+
+                        {/* Event log */}
+                        <div className="mt-auto">
+                            <h3 className="text-sm font-semibold text-gray-300 mb-2">Influence Campaign Log</h3>
+                            <div className="bg-gray-800 rounded-lg p-2 max-h-32 overflow-y-auto text-sm border border-gray-700">
+                                {influenceEvents.length > 0 ? (
+                                    <div className="space-y-1">
+                                        {influenceEvents.map((event, i) => (
+                                            <div key={i} className="text-xs text-gray-300 border-b border-gray-700 pb-1 last:border-0">
+                                                {event}
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-xs text-gray-500 italic">
+                                        No events yet. Apply your first policy.
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>-full md:w-1/3 p-4 bg-gray-850 border-r border-gray-800">
+                    <div className="flex justify-between items-center mb-3">
+                        <h3 className="text-sm font-semibold text-gray-300">Country Stats</h3>
+                        <button
+                            onClick={() => setShowUpgradesModal(true)}
+                            className="px-2 py-1 bg-amber-600 hover:bg-amber-700 text-xs rounded"
+                        >
+                            Upgrades
+                        </button>
+                    </div>
+                    
+                    {renderStarChart()}
+
+                    <div className="mt-4 space-y-2">
+                        {Object.entries(country.traits).map(([trait, value]) => (
+                            <div key={trait} className="flex justify-between">
+                                <span className={`text-sm ${TRAITS_CONFIG[trait].color}`}>
+                                    {TRAITS_CONFIG[trait].name}
+                                </span>
+                                <div className="w-32 flex items-center">
+                                    <div className="w-full bg-gray-700 h-2 rounded-full">
+                                        <div
+                                            className={`h-2 rounded-full`}
+                                            style={{
+                                                width: `${value}%`,
+                                                backgroundColor: trait === 'politics' ? '#a78bfa' :
+                                                    trait === 'media' ? '#60a5fa' :
+                                                        trait === 'control' ? '#f87171' :
+                                                            trait === 'trust' ? '#34d399' :
+                                                                '#fcd34d'
+                                            }}
+                                        ></div>
+                                    </div>
+                                    <span className="ml-2 text-sm">{value}</span>
+                                </div>
+                            </div>
+                        ))}
+
+                        <div className="pt-2 border-t border-gray-700 mt-4">
+                            <div className="flex justify-between items-center">
+                                <span className="text-sm text-gray-300">Control Threshold:</span>
+                                <span className="text-xs text-gray-400">Politics > 70, Control > 60</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Right panel - Policy cards */}
+                <div className="w
