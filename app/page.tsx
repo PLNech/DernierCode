@@ -8,7 +8,7 @@ export default function Home() {
     <main className="min-h-screen bg-black flex flex-col">
       <Header />
       <div className="flex-grow">
-          <DernierCode startLevel={4} />
+          <DernierCode startLevel={1} />
       </div>
       <Footer />
     </main>
