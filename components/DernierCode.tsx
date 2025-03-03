@@ -72,7 +72,7 @@ enum LevelNames {
 }
 
 
-const DernierCode = (props) => {
+const DernierCode = (props: { startLevel: number; }) => {
   const startLevel: number = props.startLevel;
 
   // Game state
